@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Daily NYC 311 aggregate forecasting with a private worker and public static results
+Parameters:
+  DataBucket: {Type: String}
+  WebBucket: {Type: String}
+  CodeKey: {Type: String}
+  AlertTopicArn: {Type: String}
+  RunTable: {Type: String}
+  ScheduleState:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: lambda.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ForecastOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:PutItem, dynamodb:GetItem, dynamodb:DeleteItem]
+                Resource: !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RunTable}'
+                Condition:
+                  ForAllValues:StringEquals:
+                    dynamodb:LeadingKeys: [forecast-lock]
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject]
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DataBucket}/forecast/*'
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DataBucket}'
+                Condition:
+                  StringLike: {s3:prefix: ['forecast/*']}
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${WebBucket}/forecast/report.json'
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/serviceops-demo-forecast:*'
+              - Effect: Allow
+                Action: cloudwatch:PutMetricData
+                Resource: '*'
+                Condition:
+                  StringEquals: {cloudwatch:namespace: ServiceForecast}
+  Logs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/serviceops-demo-forecast
+      RetentionInDays: 14
+  Function:
+    Type: AWS::Lambda::Function
+    DependsOn: Logs
+    Properties:
+      FunctionName: serviceops-demo-forecast
+      Runtime: python3.12
+      Handler: handler.handler
+      Role: !GetAtt Role.Arn
+      Timeout: 900
+      MemorySize: 512
+      Code: {S3Bucket: !Ref DataBucket, S3Key: !Ref CodeKey}
+      Environment:
+        Variables: {DATA_BUCKET: !Ref DataBucket, WEB_BUCKET: !Ref WebBucket, RUN_TABLE: !Ref RunTable}
+  InvokeConfiguration:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref Function
+      Qualifier: $LATEST
+      MaximumRetryAttempts: 0
+      MaximumEventAgeInSeconds: 3600
+  Schedule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: cron(0 18 * * ? *)
+      State: !Ref ScheduleState
+      Targets:
+        - Id: DailyForecast
+          Arn: !GetAtt Function.Arn
+          Input: '{}'
+          RetryPolicy: {MaximumRetryAttempts: 0, MaximumEventAgeInSeconds: 3600}
+  InvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt Schedule.Arn
+  ErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions: [{Name: FunctionName, Value: !Ref Function}]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopicArn]
+  PublicationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      Namespace: ServiceForecast
+      MetricName: Published
+      Dimensions: [{Name: Project, Value: serviceops-demo}]
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions: [!Ref AlertTopicArn]
+Outputs:
+  ForecastFunction: {Value: !Ref Function}
+  ForecastSchedule: {Value: !Ref Schedule}

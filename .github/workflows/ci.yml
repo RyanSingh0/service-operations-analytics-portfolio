@@ -13,7 +13,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - run: python -m pip install '.[dev,aws]'
+      - run: python -m pip install '.[dev,aws,ml]'
       - run: python -m ruff check src tests scripts aws
       - run: python -m pytest
       - run: cfn-lint infrastructure/*.yaml
