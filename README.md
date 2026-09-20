@@ -58,7 +58,7 @@ python -m venv .venv
 .\.venv\Scripts\python -m pip install -e ".[dev,aws,ml]"
 .\.venv\Scripts\serviceops download
 .\.venv\Scripts\python scripts/replay.py --as-of "2016-05-01 23:59:59"
-.\.venv\Scripts\python -m http.server 8765 --bind 127.0.0.1 --directory build/incremental
+.\.venv\Scripts\python scripts/serve_dashboard.py --port 8765
 ```
 
 Open http://127.0.0.1:8765. The generated HTML also opens offline. On Windows, `./scripts/start-local.ps1` performs these steps after environment setup. Use a new output directory for an earlier historical cutoff.

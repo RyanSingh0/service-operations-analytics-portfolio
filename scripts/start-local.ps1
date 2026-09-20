@@ -18,4 +18,4 @@ if (-not $AsOf) {
 & $pythonPath scripts/replay.py --as-of $AsOf
 if ($LASTEXITCODE -ne 0) { throw 'Pipeline failed.' }
 Write-Output "Dashboard: http://127.0.0.1:$Port"
-& $pythonPath -m http.server $Port --bind 127.0.0.1 --directory build/incremental
+& $pythonPath scripts/serve_dashboard.py --port $Port

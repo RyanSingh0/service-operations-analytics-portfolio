@@ -10,8 +10,10 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(ROOT / 'dashboard'), **kwargs)
 
     def do_GET(self):
+        model = ROOT / 'build/resolution/model-report.json'
         reports = {'/report.json': ROOT / 'build/incremental/report.json',
-                   '/forecast/report.json': ROOT / 'build/forecast/report.json'}
+                   '/forecast/report.json': ROOT / 'build/forecast/report.json',
+                   '/resolution/model-report.json': model if model.exists() else ROOT / 'dashboard/resolution/model-report.json'}
         path = reports.get(self.path.split('?')[0])
         if path is None:
             return super().do_GET()
