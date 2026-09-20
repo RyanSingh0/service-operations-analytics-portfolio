@@ -1,0 +1,438 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Incremental incident analytics with versioned batches, quality gates, and a public aggregate dashboard
+Parameters:
+  DataBucket:
+    Type: String
+  WebBucket:
+    Type: String
+  CodeVersion:
+    Type: String
+  AlertEmail:
+    Type: String
+    Default: ''
+  ScheduleState:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+Conditions:
+  HasEmail: !Not [!Equals [!Ref AlertEmail, '']]
+Resources:
+  RunTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expires
+        Enabled: true
+  Alerts:
+    Type: AWS::SNS::Topic
+  AlertSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmail
+    Properties:
+      TopicArn: !Ref Alerts
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub '${AWS::StackName}-account-monthly'
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: 25
+          Unit: USD
+      NotificationsWithSubscribers: !If
+        - HasEmail
+        - - Notification:
+              ComparisonOperator: GREATER_THAN
+              NotificationType: ACTUAL
+              Threshold: 50
+              ThresholdType: PERCENTAGE
+            Subscribers:
+              - SubscriptionType: EMAIL
+                Address: !Ref AlertEmail
+          - Notification:
+              ComparisonOperator: GREATER_THAN
+              NotificationType: FORECASTED
+              Threshold: 100
+              ThresholdType: PERCENTAGE
+            Subscribers:
+              - SubscriptionType: EMAIL
+                Address: !Ref AlertEmail
+        - !Ref AWS::NoValue
+  Database:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: serviceops_demo
+  Incidents:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref Database
+      TableInput:
+        Name: incidents
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: parquet
+        StorageDescriptor:
+          Location: !Sub 's3://${DataBucket}/empty/'
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+          Columns:
+            - {Name: incident_id, Type: string}
+            - {Name: state, Type: string}
+            - {Name: opened_at, Type: string}
+            - {Name: updated_at, Type: string}
+            - {Name: priority, Type: string}
+            - {Name: assignment_group, Type: string}
+            - {Name: category, Type: string}
+            - {Name: is_open, Type: boolean}
+            - {Name: reopen_count, Type: bigint}
+            - {Name: reassignment_count, Type: bigint}
+            - {Name: resolution_hours, Type: double}
+            - {Name: age_hours, Type: double}
+  AthenaWorkgroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: !Sub '${AWS::StackName}-analytics'
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+        BytesScannedCutoffPerQuery: 104857600
+        ResultConfiguration:
+          OutputLocation: !Sub 's3://${DataBucket}/athena-results/'
+          EncryptionConfiguration:
+            EncryptionOption: SSE_S3
+  GlueRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: glue.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: JobDataAndLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DataBucket}/*'
+              - Effect: Allow
+                Action: [s3:ListBucket, s3:GetBucketLocation]
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DataBucket}'
+              - Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws-glue/*'
+              - Effect: Allow
+                Action: cloudwatch:PutMetricData
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    cloudwatch:namespace: Glue
+  GlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Role: !GetAtt GlueRole.Arn
+      GlueVersion: '5.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 10
+      MaxRetries: 0
+      ExecutionProperty:
+        MaxConcurrentRuns: 1
+      Command:
+        Name: glueetl
+        PythonVersion: '3'
+        ScriptLocation: !Sub 's3://${DataBucket}/artifacts/${CodeVersion}/glue_job.py'
+      DefaultArguments:
+        '--SQL_PREFIX': !Sub 'artifacts/${CodeVersion}'
+        '--extra-py-files': !Sub 's3://${DataBucket}/artifacts/${CodeVersion}/serviceops.zip'
+        '--DATA_BUCKET': !Ref DataBucket
+        '--DATABASE': !Ref Database
+        '--job-bookmark-option': job-bookmark-disable
+        '--enable-metrics': 'true'
+        '--enable-observability-metrics': 'true'
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: lambda.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: PublishAndCoordinate
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DataBucket}'
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject]
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DataBucket}/*'
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${WebBucket}/report.json'
+              - Effect: Allow
+                Action: cloudwatch:PutMetricData
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    cloudwatch:namespace: ServiceOperations
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:DeleteItem]
+                Resource: !GetAtt RunTable.Arn
+              - Effect: Allow
+                Action: [glue:GetTable, glue:UpdateTable, glue:CreateTable]
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+                  - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:database/${Database}'
+                  - !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/${Database}/*'
+              - Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-*:*'
+  Coordinator:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-coordinator'
+      Runtime: python3.12
+      Handler: handler.handler
+      Role: !GetAtt FunctionRole.Arn
+      Timeout: 60
+      MemorySize: 256
+      Code:
+        S3Bucket: !Ref DataBucket
+        S3Key: !Sub 'artifacts/${CodeVersion}/lambda.zip'
+      Environment:
+        Variables:
+          DATA_BUCKET: !Ref DataBucket
+          WEB_BUCKET: !Ref WebBucket
+          RUN_TABLE: !Ref RunTable
+          DATABASE: !Ref Database
+          CODE_VERSION: !Ref CodeVersion
+  CoordinatorLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${Coordinator}'
+      RetentionInDays: 14
+  WorkflowRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: states.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: RunPipeline
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt Coordinator.Arn
+              - Effect: Allow
+                Action: [glue:StartJobRun, glue:GetJobRun, glue:GetJobRuns, glue:BatchStopJobRun]
+                Resource: !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:job/${GlueJob}'
+  Workflow:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn: !GetAtt WorkflowRole.Arn
+      Definition:
+        StartAt: Prepare
+        TimeoutSeconds: 1200
+        States:
+          Prepare:
+            Type: Task
+            Resource: !GetAtt Coordinator.Arn
+            Parameters:
+              action: prepare
+              owner.$: $$.Execution.Id
+              input.$: $
+            ResultPath: $.prepared
+            Next: AlreadyPublished
+          AlreadyPublished:
+            Type: Choice
+            Choices:
+              - Variable: $.prepared.skip
+                BooleanEquals: true
+                Next: Complete
+            Default: Transform
+          Transform:
+            Type: Task
+            Resource: !Sub 'arn:${AWS::Partition}:states:::glue:startJobRun.sync'
+            Parameters:
+              JobName: !Ref GlueJob
+              Arguments:
+                '--INPUT_KEY.$': $.prepared.input_key
+                '--RUN_ID.$': $.prepared.attempt
+                '--AS_OF.$': $.prepared.as_of
+            ResultPath: $.glue
+            Catch:
+              - ErrorEquals: [States.ALL]
+                ResultPath: $.error
+                Next: ReleaseFailure
+            Next: Publish
+          Publish:
+            Type: Task
+            Resource: !GetAtt Coordinator.Arn
+            Parameters:
+              action: publish
+              owner.$: $$.Execution.Id
+              prepared.$: $.prepared
+            Retry:
+              - ErrorEquals: [Lambda.ServiceException, Lambda.AWSLambdaException, Lambda.SdkClientException]
+                IntervalSeconds: 2
+                MaxAttempts: 2
+                BackoffRate: 2
+            Catch:
+              - ErrorEquals: [States.ALL]
+                ResultPath: $.error
+                Next: ReleaseFailure
+            End: true
+          ReleaseFailure:
+            Type: Task
+            Resource: !GetAtt Coordinator.Arn
+            Parameters:
+              action: release
+              owner.$: $$.Execution.Id
+            ResultPath: $.cleanup
+            Next: Failed
+          Failed:
+            Type: Fail
+            Error: PipelineFailed
+            Cause: Inspect the execution history and Glue logs; the run was not committed.
+          Complete:
+            Type: Succeed
+  ScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: scheduler.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StartWorkflow
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: states:StartExecution
+                Resource: !Ref Workflow
+  WeeklyReplay:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      State: !Ref ScheduleState
+      ScheduleExpression: cron(0 15 ? * MON *)
+      ScheduleExpressionTimezone: UTC
+      FlexibleTimeWindow: {Mode: 'OFF'}
+      Target:
+        Arn: !Ref Workflow
+        RoleArn: !GetAtt ScheduleRole.Arn
+        Input: '{"historical":false}'
+        RetryPolicy:
+          MaximumRetryAttempts: 0
+          MaximumEventAgeInSeconds: 60
+  FailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      Namespace: AWS/States
+      MetricName: ExecutionsFailed
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !Ref Workflow
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref Alerts]
+  FreshnessSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(1 day)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt Coordinator.Arn
+          Id: FreshnessCheck
+          Input: '{"action":"freshness"}'
+  FreshnessPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref Coordinator
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt FreshnessSchedule.Arn
+  FreshnessAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      Namespace: ServiceOperations
+      MetricName: StalePipeline
+      Dimensions:
+        - {Name: Project, Value: serviceops-demo}
+      Statistic: Maximum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: breaching
+      AlarmActions: [!Ref Alerts]
+  TimeoutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      Namespace: AWS/States
+      MetricName: ExecutionsTimedOut
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !Ref Workflow
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref Alerts]
+Outputs:
+  CoordinatorName:
+    Value: !Ref Coordinator
+  CoordinatorRole:
+    Value: !GetAtt FunctionRole.Arn
+  GlueRoleArn:
+    Value: !GetAtt GlueRole.Arn
+  WebBucket:
+    Value: !Ref WebBucket
+  WorkflowArn:
+    Value: !Ref Workflow
+  DataBucket:
+    Value: !Ref DataBucket
+  Database:
+    Value: !Ref Database
+  Workgroup:
+    Value: !Ref AthenaWorkgroup
+  ScheduleName:
+    Value: !Ref WeeklyReplay
+  GlueJob:
+    Value: !Ref GlueJob
+  RunTable:
+    Value: !Ref RunTable

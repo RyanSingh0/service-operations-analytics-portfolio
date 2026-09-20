@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Restricted main-branch GitHub OIDC application deployment
+Parameters:
+  Subject:
+    Type: String
+  DataBucket:
+    Type: String
+  WebBucket:
+    Type: String
+  CoordinatorName:
+    Type: String
+  GlueJob:
+    Type: String
+  GlueRoleArn:
+    Type: String
+  RunTable:
+    Type: String
+  WorkflowArn:
+    Type: String
+Resources:
+  GitHubProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Federated: !Ref GitHubProvider}
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Ref Subject
+      Policies:
+        - PolicyName: ApplicationRelease
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:s3:::${DataBucket}/artifacts/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${WebBucket}/index.html'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${WebBucket}/app.js'
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:s3:::${DataBucket}/internal/committed.json'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${DataBucket}/artifacts/*'
+              - Effect: Allow
+                Action: [lambda:GetFunctionConfiguration, lambda:UpdateFunctionCode, lambda:UpdateFunctionConfiguration]
+                Resource: !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CoordinatorName}'
+              - Effect: Allow
+                Action: [glue:GetJob, glue:UpdateJob]
+                Resource: !Sub 'arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:job/${GlueJob}'
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: !Ref GlueRoleArn
+                Condition:
+                  StringEquals: {iam:PassedToService: glue.amazonaws.com}
+              - Effect: Allow
+                Action: [dynamodb:PutItem, dynamodb:DeleteItem]
+                Resource: !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RunTable}'
+                Condition:
+                  ForAllValues:StringEquals:
+                    dynamodb:LeadingKeys: [pipeline-lock]
+              - Effect: Allow
+                Action: states:StartExecution
+                Resource: !Ref WorkflowArn
+              - Effect: Allow
+                Action: states:DescribeExecution
+                Resource: !Sub
+                  - 'arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution:${Name}:deploy-*'
+                  - Name: !Select [6, !Split [':', !Ref WorkflowArn]]
+Outputs:
+  DeployRoleArn: {Value: !GetAtt DeployRole.Arn}
