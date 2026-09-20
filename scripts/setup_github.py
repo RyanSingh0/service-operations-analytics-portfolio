@@ -13,7 +13,7 @@ from deploy import deploy_stack, outputs
 
 def main():
     parser = argparse.ArgumentParser(description="Configure repository-scoped OIDC and deployment variables")
-    parser.add_argument("--repo", default="RyanSingh0/service-operations-analytics")
+    parser.add_argument("--repo", required=True, help="Owner/repository explicitly authorized for AWS releases")
     parser.add_argument("--profile", default="serviceops")
     parser.add_argument("--stack", default="serviceops-demo")
     args = parser.parse_args()

@@ -35,7 +35,7 @@ Use short-lived access from an authorized development identity. The initial boot
 ```powershell
 ./scripts/aws.ps1 login --profile serviceops --region us-east-1
 ./.venv/Scripts/python scripts/deploy.py deploy --alert-email YOUR_EMAIL
-./.venv/Scripts/python scripts/setup_github.py
+./.venv/Scripts/python scripts/setup_github.py --repo YOUR_OWNER/YOUR_REPOSITORY
 ```
 
 Infrastructure deployment disables the weekly schedule for validation. Re-enable it after verification. `setup_github.py` uses an existing authorized GitHub credential or `GH_TOKEN` in the environment; it does not save the credential. Its subject requires repository ID, owner ID, and main branch.

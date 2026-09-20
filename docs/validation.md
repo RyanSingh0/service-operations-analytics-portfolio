@@ -23,7 +23,7 @@ Local/cloud comparison passed for the summary, daily series, every group/priorit
 
 ## Automated checks
 
-32 tests pass, covering cleaning, future-information exclusion, deterministic state selection, reopening cycles, identity and revision handling, late updates, duplicate suppression, failure preservation, lease ownership, publication validation, dimensional keys, and daily flow balance. Python lint and all four CloudFormation templates pass validation.
+As of September 20, 48 tests pass, covering cleaning, future-information exclusion, deterministic state selection, reopening cycles, identity and revision handling, late updates, duplicate suppression, failure preservation, lease ownership, publication validation, dimensional keys, daily flow balance, forecasting, and censored-resolution evaluation. Python lint and all five CloudFormation templates pass validation.
 
 Sixteen shared integrity checks pass, plus the cloud Spark SQL aggregation check: unique event and incident grains; unique group, priority, and date keys; valid dimension references; one current history row per incident; valid history intervals; nonnegative durations; no future observations; incident, group, and daily balance; and independent SQL/Python queue agreement.
 
@@ -31,7 +31,7 @@ Independent Athena queries verified unique incident counts, backlog, foreign key
 
 ## Deployment and recovery evidence
 
-[GitHub deployment run 35455756878](https://github.com/RyanSingh0/service-operations-analytics/actions/runs/35455756878) passed validation, restricted OIDC authentication, application release, and an AWS workflow smoke execution at commit `412aaa7`. [Separate CI run 35455756896](https://github.com/RyanSingh0/service-operations-analytics/actions/runs/35455756896) also passed. These historical production-run links belong to the private deployment repository. This public repository starts with a clean publication history; the original deployment repository remains private.
+[GitHub deployment run 35455756878](https://github.com/RyanSingh0/service-operations-analytics/actions/runs/35455756878) passed validation, restricted OIDC authentication, application release, and an AWS workflow smoke execution at commit `412aaa7`. [Separate CI run 35455756896](https://github.com/RyanSingh0/service-operations-analytics/actions/runs/35455756896) also passed. These historical production-run links belong to the private deployment repository. The public portfolio repository starts with a clean publication history and runs its own visible CI checks.
 
 The first upgraded release authenticated correctly but its Lambda waiter requested an operation outside the role. Changing to the waiter that uses the already-permitted configuration-read operation resolved this without expanding access.
 
@@ -55,4 +55,12 @@ Browser checks passed page loading, priority and group filtering, empty-filter r
 
 The deployed schedule and notification status are recorded in the handoff report. Infrastructure deployment intentionally disables weekly processing until verification; application-only GitHub releases preserve that schedule. Email alerts require the recipient to confirm the SNS subscription.
 
-Successful upgraded Glue runs were measured at 132 seconds with two G.1X workers. See [costs.md](costs.md) for usage projections and billing availability. No monthly invoice, enterprise throughput, live source integration, prediction accuracy, or business savings are claimed. Forecasting coverage and baseline limitations are documented separately.
+Successful upgraded Glue runs were measured at 132 seconds with two G.1X workers. See [costs.md](costs.md) for usage projections and estimated account billing. No finalized monthly invoice, enterprise throughput, live IT source integration, or business savings are claimed. Forecasting coverage and baseline limitations are documented separately.
+
+## September 20 model and publication checks
+
+The daily NYC forecast executed automatically and published data through September 18. The interactive page loaded and responded to borough and horizon changes. Model downloads are exposed by the page; an automated browser download-completion check was inconclusive and is not counted as verified file-download evidence.
+
+The resolution artifact contains no incident identifiers. Browser/Python parity was checked for moderate and critical incidents using the hazard model and the pooled baseline: displayed 24-hour and seven-day probabilities and medians matched at the page's rounding precision. The model page, cohort counts, baseline comparison, and priority table were inspected in the browser. Test probability error improves; observed-event median MAE does not beat the pooled baseline.
+
+Updated root and resolution assets were uploaded and read back with matching SHA-256 digests. Existing IT and NYC public report digests remained unchanged during the static page publication. The complete censoring and evaluation contract is in [resolution-model.md](resolution-model.md).

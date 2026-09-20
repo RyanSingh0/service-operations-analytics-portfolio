@@ -42,6 +42,16 @@ function render() {
     el('metrics').append(card);
   }
   const q = report.quality, batch = q.batch || {};
+  const aggregate = label => report.groups.filter(r => r.group === label).reduce((sum,r) => ({incidents:sum.incidents+r.incidents,open:sum.open+r.open,reassigned:sum.reassigned+r.reassigned}), {incidents:0,open:0,reassigned:0});
+  const group9 = aggregate('Group 9'), unknown = aggregate('Unknown');
+  el('findings').replaceChildren();
+  const insights = [
+    `Group 9 holds ${fmt(group9.open)} open incidents out of ${fmt(group9.incidents)} at this cutoff. This concentration merits review of the underlying audit history, not a performance ranking. In the separate May 8 audit, all 215 incidents reached a terminal state later in the extract.`,
+    `${fmt(unknown.incidents)} incidents have no recorded assignment group, including ${fmt(unknown.reassigned)} with a nonzero reassignment count. Missing current ownership and past reassignment are different fields; one does not invalidate the other.`,
+    `The p90 observed resolution time is ${fmt(report.summary.p90_resolution_hours)} hours, compared with a median of ${fmt(report.summary.median_resolution_hours)} hours. The long tail matters; an average alone would hide this variation. Open incidents are excluded from these duration metrics.`,
+    `${fmt(q.rejected_rows)} of ${fmt(q.source_rows)} consumed deliveries were quarantined. Missing optional categories remain visible as Unknown instead of silently disappearing from the analysis.`
+  ];
+  insights.forEach(text => el('findings').append(textNode('li',text)));
   rows('quality', [['Deliveries checked', fmt(q.source_rows)], ['Valid deliveries', fmt(q.accepted_rows)],
     ['Quarantined deliveries', fmt(q.rejected_rows)], ['Accepted rate', ((1 - q.reject_rate) * 100).toFixed(3) + '%']]);
   rows('batch', [['New batches', fmt(report.workflow?.new_batches)], ['Input rows', fmt(batch.input_rows)],

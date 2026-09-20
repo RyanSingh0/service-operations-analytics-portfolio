@@ -1,6 +1,8 @@
 # Measured usage and monthly estimate
 
-Measured 18 September 2026 in US East (N. Virginia). **This is a usage-based projection, not an invoice.** AWS Cost Explorer returned `DataUnavailableException`; billed monthly cost cannot yet be verified.
+Updated 20 September 2026 in US East (N. Virginia). Cost Explorer now reports **$0.23494 account-wide unblended cost** for September 1–19 (September 20 end-exclusive), marked **Estimated**. This is a partial-month account measurement, not a finalized invoice or a project-only allocation. It includes $0.20607 Glue, $0.01842 S3, $0.01 tax, and small other charges. It must not be extrapolated as a complete monthly bill.
+
+The daily NYC forecast ran automatically on September 20: 7.090 seconds execution, 7.411 seconds billed, 512 MB configured, 105 MB peak memory. At $0.0000166667 per GB-second, 31 similar invocations cost about **$0.0019/month in Lambda compute alone**, before free allowances. Requests, monitoring, logs, storage, and website delivery are additional. The historical resolution model trains locally and uses static browser inference.
 
 ## Observed usage
 
@@ -17,7 +19,7 @@ Measured S3 content, including versions, totaled approximately 151.4 MB across t
 
 ## Planning allowance
 
-Use **$2–$5/month** as a conservative allowance for small demonstration traffic, not as a measured bill or guarantee. Assumptions: weekly processing, about eight development releases, two exercises, under 1 GB of storage, modest logs, a handful of alarms, occasional Athena queries, and about 10,000 lightweight website visits or fewer. Public traffic and frequent rebuilds are variable costs.
+Use **$2–$5/month** as a conservative allowance for small demonstration traffic, not as a measured bill or guarantee. Assumptions: weekly processing, about eight development releases, two exercises, under 1 GB of storage, modest logs, a handful of alarms, daily short forecast runs, occasional Athena queries, and about 10,000 lightweight website visits or fewer. Public traffic and frequent rebuilds are variable costs.
 
 No always-running EC2 server, NAT gateway, database server, or paid BI subscription is used. The CloudFront address requires no domain purchase. A custom domain would have separate registration costs; Route 53 is optional.
 
@@ -39,3 +41,5 @@ Disable scheduled processing with `python scripts/deploy.py disable`; the websit
 - [S3 pricing](https://aws.amazon.com/s3/pricing/)
 
 Rates and account allowances may change. Credits and free tiers are not required for the Glue compute calculation above.
+
+- [AWS Lambda pricing](https://aws.amazon.com/lambda/pricing/)
