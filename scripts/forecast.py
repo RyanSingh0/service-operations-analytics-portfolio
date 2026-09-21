@@ -5,6 +5,8 @@ from pathlib import Path
 
 from serviceforecast.model import build
 from serviceforecast.source import fetch
+from serviceforecast.weather import fetch_weather
+from serviceforecast.monitor import update
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -18,7 +20,14 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     source_file = output / 'source.json'
     source = fetch() if args.refresh or not source_file.exists() else json.loads(source_file.read_text())
-    report = build(source)
+    weather = None
+    try:
+        weather = fetch_weather(source)
+    except Exception as error:
+        print('Optional weather unavailable:', type(error).__name__, flush=True)
+    report = build(source, weather=weather)
+    _, report['monitoring'] = update(None, source)
+    report['monitoring']['contract'] += ' Local generation does not count as a public issuance.'
     source_file.write_text(json.dumps(source))
     temporary = output / 'report.tmp'
     temporary.write_text(json.dumps(report, allow_nan=False))

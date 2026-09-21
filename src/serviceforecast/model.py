@@ -2,9 +2,11 @@ import math
 from datetime import date, datetime, timedelta, timezone
 from statistics import mean
 
+from serviceforecast.weather import extra_features
+
 HORIZON = 14
 CANDIDATES = ('same_weekday', 'four_week_mean', 'seasonal_ridge')
-VERSION = 'seasonal-demand-v1'
+VERSION = 'seasonal-demand-v2-monitoring'
 
 
 def seasonal_values(values, origin, horizon):
@@ -12,14 +14,15 @@ def seasonal_values(values, origin, horizon):
     return [values[index - 7 * k] for k in range(4)]
 
 
-def features(values, days, origin, horizon, scale):
+def features(values, days, origin, horizon, scale, weather=None):
     target = days[origin] + timedelta(days=horizon)
     lags = seasonal_values(values, origin, horizon)
-    return [1.0, *[v/scale for v in lags], mean(values[origin-6:origin+1])/scale,
+    result = [1.0, *[v/scale for v in lags], mean(values[origin-6:origin+1])/scale,
             mean(values[origin-27:origin+1])/scale,
             math.sin(2*math.pi*target.weekday()/7), math.cos(2*math.pi*target.weekday()/7),
             math.sin(2*math.pi*target.timetuple().tm_yday/365.25),
             math.cos(2*math.pi*target.timetuple().tm_yday/365.25), horizon/HORIZON]
+    return result + extra_features(days, origin, horizon, weather) if weather else result
 
 
 def solve(matrix, vector):
@@ -40,18 +43,18 @@ def solve(matrix, vector):
     return [row[-1] for row in a]
 
 
-def fit(values, days, end):
+def fit(values, days, end, weather=None):
     if end < 180:
         raise ValueError('At least 180 training days required')
     scale = max(1.0, mean(values[:end]))
-    size = 12
+    size = 17 if weather else 12
     matrix = [[0.0]*size for _ in range(size)]
     vector = [0.0]*size
     samples = 0
     # Weekly origins limit redundant overlapping labels; every target is before end.
     for origin in range(55, end-HORIZON, 7):
         for horizon in range(1, HORIZON+1):
-            x = features(values, days, origin, horizon, scale)
+            x = features(values, days, origin, horizon, scale, weather)
             target = values[origin+horizon]/scale
             for i in range(size):
                 vector[i] += x[i]*target
@@ -64,7 +67,7 @@ def fit(values, days, end):
             'training_through': days[end-1].isoformat(), 'samples': samples, 'ridge_penalty': 8.0}
 
 
-def predict(name, values, days, origin, horizon, fitted):
+def predict(name, values, days, origin, horizon, fitted, weather=None):
     if origin < 27 or not 1 <= horizon <= HORIZON:
         raise ValueError('Unsupported forecast origin or horizon')
     lags = seasonal_values(values, origin, horizon)
@@ -72,16 +75,16 @@ def predict(name, values, days, origin, horizon, fitted):
         return float(lags[0])
     if name == 'four_week_mean':
         return mean(lags)
-    if name != 'seasonal_ridge':
+    if name not in ('seasonal_ridge', 'weather_calendar_ridge'):
         raise ValueError('Unknown model')
-    x = features(values, days, origin, horizon, fitted['scale'])
+    x = features(values, days, origin, horizon, fitted['scale'], weather)
     result = sum(a*b for a, b in zip(x, fitted['coefficients']))*fitted['scale']
     if not math.isfinite(result):
         raise ValueError('Nonfinite prediction')
     return max(0.0, result)
 
 
-def evaluate(name, values, days, start, end, fitted):
+def evaluate(name, values, days, start, end, fitted, weather=None):
     if date.fromisoformat(fitted['training_through']) >= days[start]:
         raise ValueError('Training overlaps evaluation targets')
     rows = []
@@ -89,7 +92,7 @@ def evaluate(name, values, days, start, end, fitted):
         origin = block-1
         for index in range(block, min(block+HORIZON, end)):
             horizon = index-origin
-            prediction = predict(name, values[:origin+1], days, origin, horizon, fitted)
+            prediction = predict(name, values[:origin+1], days, origin, horizon, fitted, weather)
             rows.append({'date': days[index].isoformat(), 'origin': days[origin].isoformat(),
                          'horizon': horizon, 'actual': values[index], 'predicted': prediction})
     return rows
@@ -102,7 +105,7 @@ def metrics(rows):
             'days': len(rows)}
 
 
-def build(source):
+def build(source, weather=None):
     days = [date.fromisoformat(d) for d in source['dates']]
     n = len(days)
     if n < 365 or any(b-a != timedelta(days=1) for a, b in zip(days, days[1:])):
@@ -136,12 +139,25 @@ def build(source):
         test_metrics = {candidate: metrics(rows) for candidate, rows in tests.items()}
         coverage = mean(abs(r['actual']-r['predicted']) <= width for r in selected_test)
         final = fit(values, days, n)
+        shadow = fit(values, days, n, weather) if weather else None
+        if weather:
+            earlier = fit(values, days, training_end, weather)
+            validation['weather_calendar_ridge'] = metrics(evaluate('weather_calendar_ridge', values, days,
+                training_end, validation_end, earlier, weather))
+            shadow_frozen = fit(values, days, validation_end, weather)
+            test_metrics['weather_calendar_ridge'] = metrics(evaluate('weather_calendar_ridge', values, days,
+                calibration_end, n, shadow_frozen, weather))
         predictions = []
         for horizon in range(1, HORIZON+1):
             value = predict(chosen, values, days, n-1, horizon, final)
             predictions.append({'date': (days[-1]+timedelta(days=horizon)).isoformat(),
                 'forecast': round(value), 'lower': max(0, math.floor(value-width)),
-                'upper': math.ceil(value+width), 'horizon': horizon})
+                'upper': math.ceil(value+width), 'horizon': horizon,
+                'candidates': {candidate: round(predict(candidate, values, days, n-1, horizon, final), 2)
+                               for candidate in CANDIDATES}})
+            if shadow:
+                predictions[-1]['candidates']['weather_calendar_ridge'] = round(predict(
+                    'weather_calendar_ridge', values, days, n-1, horizon, shadow, weather), 2)
         report['series'][name] = {'selected_model': chosen, 'selection_metrics': validation,
             'test_metrics': test_metrics, 'test_interval_coverage_pct': round(100*coverage, 1),
             'interval': {'nominal_pct': 90, 'calibration_days': len(errors), 'half_width': round(width, 2),
@@ -149,4 +165,9 @@ def build(source):
             'fitted_model': final, 'forecast': predictions,
             'history': [{'date': d.isoformat(), 'requests': v} for d, v in zip(days[-90:], values[-90:])],
             'test_predictions': [{**r, 'predicted': round(r['predicted'], 2)} for r in selected_test]}
+        if shadow:
+            report['series'][name]['shadow_model'] = shadow
+    report['weather'] = ({k: v for k, v in weather.items() if k != 'days'} if weather else
+                         {'status': 'Unavailable; core demand forecasts continue without weather'})
+    report['weather']['role'] = 'Experimental challenger; not eligible for automatic selection until prospective evidence accumulates'
     return report

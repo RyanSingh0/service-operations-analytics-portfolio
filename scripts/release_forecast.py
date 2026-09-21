@@ -15,7 +15,8 @@ FUNCTION = 'serviceops-demo-forecast'
 
 def package():
     files = [(p, 'serviceforecast/'+p.name) for p in sorted((ROOT / 'src/serviceforecast').glob('*.py'))]
-    return zip_files([(ROOT / 'aws/forecast_job.py', 'handler.py'), *files])
+    return zip_files([(ROOT / 'aws/forecast_job.py', 'handler.py'),
+                      (ROOT / 'aws/usage_summary.py', 'usage_summary.py'), *files])
 
 
 def release(session, config):

@@ -101,7 +101,16 @@ def main():
         bucket = outputs(bootstrap)["DataBucket"]
         from package_batches import package
         from release import upload
-        website = outputs(deploy_stack(cf, args.stack + "-website", ROOT / "infrastructure/website.yaml", {}))
+        website_parameters = {}
+        try:
+            existing_website = cf.describe_stacks(StackName=args.stack + "-website")["Stacks"][0]
+            website_parameters = {p["ParameterKey"]: p["ParameterValue"]
+                                  for p in existing_website["Parameters"]
+                                  if p["ParameterKey"] == "AnalyticsOrigin"}
+        except ClientError as error:
+            if "does not exist" not in str(error):
+                raise
+        website = outputs(deploy_stack(cf, args.stack + "-website", ROOT / "infrastructure/website.yaml", website_parameters))
         version = upload(session, bucket, website["WebBucket"])
         registry = package(source, ROOT / "build/batches")
         try:

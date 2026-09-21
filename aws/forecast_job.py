@@ -8,6 +8,9 @@ import boto3
 
 from serviceforecast.model import build
 from serviceforecast.source import fetch
+from serviceforecast.monitor import record_publication, update
+from serviceforecast.weather import fetch_weather
+from usage_summary import summarize
 
 
 def handler(event, context):
@@ -35,15 +38,28 @@ def run(event, verify_lease):
     s3 = boto3.client('s3')
     metrics = boto3.client('cloudwatch')
     bucket, website = os.environ['DATA_BUCKET'], os.environ['WEB_BUCKET']
-    keys = s3.list_objects_v2(Bucket=bucket, Prefix='forecast/source.json', MaxKeys=1).get('Contents', [])
-    exists = any(item['Key'] == 'forecast/source.json' for item in keys)
-    previous = json.loads(s3.get_object(Bucket=bucket, Key='forecast/source.json')['Body'].read()) if exists else None
+    def read_optional(key):
+        keys = s3.list_objects_v2(Bucket=bucket, Prefix=key, MaxKeys=1).get('Contents', [])
+        return json.loads(s3.get_object(Bucket=bucket, Key=key)['Body'].read()) if any(item['Key'] == key for item in keys) else None
+    previous = read_optional('forecast/source.json')
     source = fetch(previous=previous)
-    report = build(source)
-    data = json.dumps(report, allow_nan=False).encode()
+    weather = None
+    try:
+        weather = fetch_weather(source, read_optional('forecast/weather.json'))
+    except Exception as error:
+        print('Optional weather unavailable:', type(error).__name__)
+    report = build(source, weather=weather)
     if event.get('failure_drill'):
         raise ValueError('Controlled forecast failure before publication')
     verify_lease()
+    state, monitoring = update(read_optional('forecast/monitor-state.json'), source, previous)
+    report['monitoring'] = monitoring
+    try:
+        report['usage'] = summarize(boto3.client('dynamodb'))
+    except Exception as error:
+        report['usage'] = {'status': 'Usage temporarily unavailable', 'total_views': None}
+        print('Usage summary unavailable:', type(error).__name__)
+    data = json.dumps(report, allow_nan=False).encode()
     attempt = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid4().hex[:8]
     s3.put_object(Bucket=bucket, Key=f'forecast/runs/{attempt}/report.json', Body=data,
                   ContentType='application/json')
@@ -51,7 +67,14 @@ def run(event, verify_lease):
                   ContentType='application/json')
     s3.put_object(Bucket=website, Key='forecast/report.json', Body=data,
                   ContentType='application/json', CacheControl='no-cache, max-age=0, must-revalidate')
+    # Only register predictions after the public write succeeds. A retry keeps the first daily issue.
+    state = record_publication(state, report)
+    s3.put_object(Bucket=bucket, Key='forecast/monitor-state.json', Body=json.dumps(state).encode(), ContentType='application/json')
+    if weather:
+        s3.put_object(Bucket=bucket, Key='forecast/weather.json', Body=json.dumps(weather).encode(), ContentType='application/json')
     metrics.put_metric_data(Namespace='ServiceForecast', MetricData=[
+        {'MetricName': 'Undercoverage', 'Value': sum(s['status'] == 'Undercoverage warning' for s in monitoring['series'].values()),
+         'Unit': 'Count', 'Dimensions': [{'Name': 'Project', 'Value': 'serviceops-demo'}]},
         {'MetricName': 'Published', 'Value': 1, 'Unit': 'Count',
          'Dimensions': [{'Name': 'Project', 'Value': 'serviceops-demo'}]},
         {'MetricName': 'SourceLagDays', 'Value': source['source']['reporting_lag_days'], 'Unit': 'Count',

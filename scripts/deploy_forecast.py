@@ -25,12 +25,15 @@ def main():
     resources = session.client('cloudformation').describe_stack_resources(StackName='serviceops-demo')['StackResources']
     topic = next(r['PhysicalResourceId'] for r in resources if r['LogicalResourceId'] == 'Alerts')
     cf = session.client('cloudformation')
+    usage = {}
     try:
         old = cf.describe_stacks(StackName='serviceops-demo-forecast')['Stacks'][0]
     except ClientError as error:
         if 'does not exist' not in str(error):
             raise
     else:
+        usage = {p['ParameterKey']: p['ParameterValue'] for p in old['Parameters']
+                 if p['ParameterKey'] in {'UsageTable', 'UsageStartDate'}}
         if old['StackStatus'] == 'ROLLBACK_COMPLETE':
             remnants = cf.describe_stack_resources(StackName='serviceops-demo-forecast')['StackResources']
             if any(item['ResourceStatus'] != 'DELETE_COMPLETE' for item in remnants):
@@ -39,7 +42,7 @@ def main():
             cf.get_waiter('stack_delete_complete').wait(StackName='serviceops-demo-forecast')
     deploy_stack(session.client('cloudformation'), 'serviceops-demo-forecast', ROOT / 'infrastructure/forecast.yaml',
         {'DataBucket': config['DataBucket'], 'WebBucket': config['WebBucket'], 'CodeKey': key,
-         'AlertTopicArn': topic, 'RunTable': config['RunTable'], 'ScheduleState': 'DISABLED'})
+         'AlertTopicArn': topic, 'RunTable': config['RunTable'], 'ScheduleState': 'DISABLED', **usage})
     seed = ROOT / 'build/forecast/source.json'
     existing = session.client('s3').list_objects_v2(Bucket=config['DataBucket'], Prefix='forecast/source.json').get('Contents', [])
     if seed.exists() and not any(item['Key'] == 'forecast/source.json' for item in existing):
