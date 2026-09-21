@@ -4,7 +4,13 @@ Three connected demonstrations: verified IT incident analytics, daily NYC 311 de
 
 **[IT dashboard](https://d17q1whdf7htno.cloudfront.net/) · [Current NYC 311 forecasts](https://d17q1whdf7htno.cloudfront.net/forecast/index.html) · [Resolution model](https://d17q1whdf7htno.cloudfront.net/resolution/index.html)**
 
-![IT dashboard showing the May 8, 2016 snapshot](docs/assets/dashboard.jpg)
+Screenshots captured from the deployed website on September 21, 2026. The pages continue updating on their scheduled runs.
+
+![NYC 311 demand forecast, uncertainty bands and measured model comparisons](docs/assets/forecast.jpg)
+
+![Interactive resolution model with survival probabilities and later-period evaluation](docs/assets/resolution.jpg)
+
+![IT dashboard showing the May 15, 2016 historical replay snapshot](docs/assets/dashboard.jpg)
 
 ```mermaid
 flowchart LR
@@ -28,6 +34,17 @@ flowchart LR
 
 The IT source is the public UCI Incident Management Process Enriched Event Log. **Deliveries, duplicates, late updates, and corrections are simulated from a fixed 2016 dataset.** NYC 311 is a separate current public source refreshed daily, with a reporting lag. Neither source is a live ServiceNow connection or a continuous event stream.
 
+## Decisions this supports
+
+| Decision | Evidence provided | Boundary |
+|---|---|---|
+| Where should a manager investigate backlog? | Aging, ownership, priority and source-quality findings | No causal team-performance ranking |
+| How much recorded demand might arrive? | Borough forecasts, baseline comparisons and capacity scenarios | Request counts are not staffing requirements |
+| Is a forecast still dependable? | Published prediction ledger, delayed actuals, weekly errors and coverage warnings | Operating history accumulates after deployment |
+| Can analysts trust the reporting pipeline? | Reconciliation, correction handling and preservation of the last valid publication | Bounded workload; no enterprise-scale throughput claim |
+
+The demonstrated value is repeatable decision support with visible uncertainty and failure checks. Revenue, staffing savings and customer adoption have not been measured. Page views are published as an explicitly limited usage measure, not a count of distinct users.
+
 ## Findings
 
 These observations refer to the **May 8, 2016** replay snapshot; the scheduled dashboard can advance beyond it. [Reproducible analysis and caveats](docs/findings.md).
@@ -39,9 +56,17 @@ These observations refer to the **May 8, 2016** replay snapshot; the scheduled d
 
 ## Models and measured results
 
-The NYC pipeline compares same-weekday-last-week, four-week weekday means, and seasonal regression using chronological selection, calibration, and test windows. The September 20 publication covers data through September 18; its citywide selected baseline has 4.46% test WAPE. Results change as the rolling window advances. Visitors can compare boroughs, horizons, uncertainty bands, and an illustrative capacity threshold.
+The NYC pipeline compares same-weekday-last-week, four-week weekday means, and seasonal regression using chronological selection, calibration, and test windows. The September 21 publication covers data through September 19; its citywide selected baseline has 4.66% test WAPE. Results change as the rolling window advances. Visitors can compare boroughs, horizons, uncertainty bands, and an illustrative capacity threshold.
 
 The historical resolution model retains censored cases, splits incidents by time, and compares pooled and priority Kaplan–Meier baselines with a piecewise hazard model. On 3,496 later test incidents, mean censor-adjusted Brier score improves from 0.27417 to 0.26013 (about 5.1%). **Observed-event median MAE does not beat the pooled baseline: 47.71 vs 47.25 hours.** The page exposes priority-level errors and limitations. Inputs remain in the browser; there is no paid inference endpoint.
+
+## Forecast monitoring and additional signals
+
+The daily job logs predictions before their target dates, scores them after actuals mature, and reports eight weeks of errors and interval coverage. The chart starts empty and fills with real operating evidence. Anonymous page-view totals are aggregated by the same daily job and displayed on all three pages.
+
+The weekday baseline intentionally repeats its seven weekday values in a 14-day forecast. Selection is based on an earlier validation window; the page explains the comparison separately from test performance. More complex regression does not win for every borough.
+
+A weather/calendar challenger now includes federal holidays and lagged temperature/rain. On the September 21 extract, its citywide test WAPE was 5.52%, compared with 4.66% for the selected weekday mean. It remains a logged challenger rather than being promoted. Source-revision counts and demand-shift diagnostics support investigation of changing reporting patterns. See [monitoring and experiment results](docs/forecast-monitoring.md).
 
 ## Automation and cost
 

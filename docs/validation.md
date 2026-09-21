@@ -23,7 +23,9 @@ Local/cloud comparison passed for the summary, daily series, every group/priorit
 
 ## Automated checks
 
-As of September 20, 48 tests pass, covering cleaning, future-information exclusion, deterministic state selection, reopening cycles, identity and revision handling, late updates, duplicate suppression, failure preservation, lease ownership, publication validation, dimensional keys, daily flow balance, forecasting, and censored-resolution evaluation. Python lint and all five CloudFormation templates pass validation.
+As of September 21, 59 tests pass, covering cleaning, future-information exclusion, deterministic state selection, reopening cycles, identity and revision handling, late updates, duplicate suppression, failure preservation, lease ownership, publication validation, dimensional keys, daily flow balance, forecasting, censored-resolution evaluation, prospective score maturity, weather feature timing and aggregate-only page-view collection. Python lint and all six CloudFormation templates pass validation.
+
+The monitoring deployment succeeded in AWS. The daily schedule remained enabled and completed its September 21 scheduled run. A read-only check found 72 future-target predictions in the first daily ledger and real browser verification visits in the aggregate counter. These visits are test/maintainer traffic, not evidence of external adoption. Publication-order tests verify that a failed public write does not register predictions as published. The live borough control exposes Manhattan's 73.8% retrospective band coverage warning. Current screenshots cover all three deployed pages.
 
 Sixteen shared integrity checks pass, plus the cloud Spark SQL aggregation check: unique event and incident grains; unique group, priority, and date keys; valid dimension references; one current history row per incident; valid history intervals; nonnegative durations; no future observations; incident, group, and daily balance; and independent SQL/Python queue agreement.
 

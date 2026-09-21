@@ -25,6 +25,10 @@ No always-running EC2 server, NAT gateway, database server, or paid BI subscript
 
 The account-wide $25 monthly budget alerts above 50% actual spend and above 100% forecast spend. It includes unrelated account usage and **does not impose a hard cap**. Do not label all account spend as this project's cost.
 
+## Monitoring extension
+
+September 21's scheduled forecast with weather/calendar evaluation used 38.403 seconds of execution, 38.778 billed seconds and 512 MB, with 107 MB peak memory. At the same Lambda rate above, 31 such invocations would be about $0.01 in compute alone. This is one observed run, not a monthly bill. The new page-view API and coverage alarm add request and monitoring charges; see [collection limits and pricing assumptions](forecast-monitoring.md#operation-and-cost). The $2–$5 planning allowance remains conditional on modest traffic and should be checked against actual billing.
+
 ## Measure again
 
 Run `python scripts/measure_cost.py` with the authorized `serviceops` profile. It records execution times, AWS-reported DPU-seconds, versioned S3 storage, and available billing data in `build/cost-measurement.json`. Recalculate after meaningful workload changes.

@@ -17,3 +17,5 @@ dist/
 *.tfstate*
 deployment.local.json
 *.log
+
+private-notes/

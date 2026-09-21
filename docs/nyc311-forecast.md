@@ -56,7 +56,7 @@ Selection: May 29–June 25, 2026. Calibration: June 26–August 6. Untouched te
 
 Manhattan's band undercovers relative to the nominal 90% target. The interface reports this limitation. Model selection is based on the earlier selection period; another candidate can perform better in the final test without being substituted after seeing test results.
 
-Backtests use the current revised source extract. Historical publication vintages, reporting delays, and exact information availability are unavailable, so this is a retrospective chronological evaluation, not a fully point-in-time replay of the city's publication system. Holidays and weather are not modeled explicitly. Each series is fitted separately; forecasts are not constrained to sum across boroughs.
+Backtests use the current revised source extract. Historical publication vintages, reporting delays, and exact information availability are unavailable, so this is a retrospective chronological evaluation, not a fully point-in-time replay of the city's publication system. The core selected models do not explicitly use holidays or weather. A separately evaluated weather/calendar challenger is described in [forecast monitoring](forecast-monitoring.md). Each series is fitted separately; forecasts are not constrained to sum across boroughs.
 
 ## Interactive use
 
@@ -92,3 +92,7 @@ Daily extraction/modeling runs on a 512 MB Lambda rather than an always-running 
 The IT pipeline already demonstrates PySpark and Spark SQL. This small aggregate forecasting workload does not benefit from an always-on Spark streaming job. A future true streaming extension needs a source that actually emits timely events, event-time watermarks, deduplication, checkpoint recovery, and an independently measured cost budget. Polling daily NYC data more frequently would not make its source real time.
 
 References: [NYC dataset changes](https://www.nyc.gov/opendata/news/all-news/311-Service-Requests-Updates), [Socrata query documentation](https://dev.socrata.com/docs/queries/), [rolling-origin evaluation](https://otexts.com/fpp3/tscv.html).
+
+## Operational evaluation
+
+See [forecast-monitoring.md](forecast-monitoring.md) for the published prediction ledger, delayed actuals, coverage alarm, source revision diagnostics, page-view measurement, and weather/calendar experiment. Retrospective scores above remain the initial study snapshot.
