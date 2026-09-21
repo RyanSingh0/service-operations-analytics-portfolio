@@ -2,7 +2,7 @@
 let report;
 const $ = id => document.getElementById(id);
 const number = value => new Intl.NumberFormat('en-US').format(Math.round(value));
-const names = {same_weekday: 'Same weekday', four_week_mean: 'Four-week mean', seasonal_ridge: 'Seasonal regression'};
+const names = {same_weekday: 'Same weekday', four_week_mean: 'Four-week mean', seasonal_ridge: 'Seasonal regression', weather_calendar_ridge: 'Weather + calendar (challenger)'};
 function cell(row, value) { const td = document.createElement('td'); td.textContent = value; row.append(td); }
 function svgNode(name, attributes = {}) { const element = document.createElementNS('http://www.w3.org/2000/svg', name); Object.entries(attributes).forEach(([k,v]) => element.setAttribute(k,String(v))); return element; }
 function chart(history, forecast) {
@@ -34,6 +34,7 @@ function render(resetCapacity=false){
   Object.entries(series.test_metrics).forEach(([key,m])=>{const row=document.createElement('tr');cell(row,names[key]+(key===series.selected_model?' ✓':''));cell(row,number(m.mae));cell(row,m.wape_pct+'%');$('comparison').append(row);});
   $('coverage').textContent='Test band coverage: '+series.test_interval_coverage_pct+'%. MAE is the mean absolute error in requests per day. Bands were calibrated on '+series.interval.calibration_days+' separate dates.';
   $('daily').replaceChildren();rows.forEach(r=>{const row=document.createElement('tr');[r.date,number(r.forecast),number(r.lower),number(r.upper),number(Math.max(0,r.forecast-capacity))].forEach(v=>cell(row,v));$('daily').append(row);});
+  monitoring(name, series);
   chart(series.history.slice(-42),rows);$('range-label').textContent=name+' · 42 observed days and '+rows.length+' estimated days.';
 }
 function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type}));const anchor=document.createElement('a');anchor.href=url;anchor.download=name;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -54,3 +55,21 @@ $('borough').addEventListener('change',()=>render(true));$('horizon').addEventLi
 $('csv').addEventListener('click',()=>{const capacity=Number($('capacity').value);const text=['date,borough,forecast,lower,upper,daily_capacity,demand_above_capacity',...selectedRows().map(r=>[r.date,$('borough').value,r.forecast,r.lower,r.upper,capacity,Math.max(0,r.forecast-capacity)].join(','))].join('\n');download('nyc311-forecast.csv',text,'text/csv;charset=utf-8');});
 $('json').addEventListener('click',()=>download('nyc311-forecast-report.json',JSON.stringify(report,null,2),'application/json'));
 load();setInterval(load,15*60*1000);
+
+function monitoring(name, series) {
+  const monitor=report.monitoring, m=monitor?.series?.[name];
+  $('monitor-weeks').replaceChildren(); $('monitor-chart').replaceChildren();
+  $('monitor-status').textContent=m ? `${m.status} · ${m.scored_predictions} scored forecasts across ${m.distinct_target_dates} target dates` : 'Prospective monitoring starts with the next successful publication.';
+  $('monitor-status').style.color=m?.status==='Undercoverage warning'?'#a0411f':'#245d55';
+  $('monitor-detail').textContent=m ? `${m.awaiting_mature_actuals} forecasts await mature actuals. Recorded band coverage: ${m.coverage_pct===null?'not yet measurable':m.coverage_pct+'%'}. Recent 28-day demand change: ${m.demand_shift_pct??'unavailable'}%${m.demand_shift_warning?' — investigate the shift':''}.` : '';
+  const weekly=m?.weekly||[];
+  weekly.forEach(w=>{const tr=document.createElement('tr');[w.week,w.predictions,w.dates,w.wape_pct===null?'—':w.wape_pct+'%',w.coverage_pct+'%'].forEach(v=>cell(tr,v));$('monitor-weeks').append(tr);});
+  if(weekly.length){const svg=svgNode('svg',{viewBox:'0 0 720 190',role:'img','aria-label':'Weekly error for previously published forecasts'});const max=Math.max(10,...weekly.map(w=>w.wape_pct||0));weekly.forEach((w,i)=>{const x=55+i*620/Math.max(1,weekly.length-1),y=150-(w.wape_pct||0)/max*115;svg.append(svgNode('line',{x1:x,x2:x,y1:150,y2:y,stroke:'#287466','stroke-width':16}));const t=svgNode('text',{x,y:y-10,'text-anchor':'middle'});t.textContent=w.wape_pct+'%';svg.append(t);const label=svgNode('text',{x,y:177,'text-anchor':'middle'});label.textContent=w.week.slice(5);svg.append(label);});$('monitor-chart').append(svg);}
+  else $('monitor-chart').textContent='The chart will populate as published forecasts receive mature actuals. Historical test scores are kept separate.';
+  $('monitor-leads').textContent=m ? 'Error by lead time: '+m.by_lead.map(v=>`${v.lead} days: ${v.wape_pct===null?'pending':v.wape_pct+'% WAPE'} (${v.predictions} forecasts)`).join(' · ') : '';
+  const revision=monitor?.source_revisions;
+  $('revision-info').textContent=revision?.changed_city_dates!==undefined ? `Source corrections since the previous extract: ${revision.changed_city_dates} city dates changed; ${number(revision.absolute_revised_requests)} requests of absolute revision. These describe published records, not a causal demand change.` : revision?.status||'';
+  const v=series.selection_metrics;
+  $('selection-reason').textContent=`The selected ${names[series.selected_model]} had validation MAE ${v[series.selected_model].mae}; seasonal regression had ${v.seasonal_ridge.mae}. Regression needs a 2% improvement to replace the better baseline. `+(series.selected_model==='four_week_mean'?'The same four observed matching weekdays inform each future weekday, so week two repeats week one exactly. This is expected baseline behavior. ':'Model selection is specific to this borough and evaluation window. ')+(series.test_interval_coverage_pct<80?'Retrospective warning: the nominal 90% band covered fewer than 80% of test dates.':'');
+  $('weather-info').textContent=report.weather?.through ? `Weather/calendar challenger evaluated with federal-holiday indicators and lagged temperature/rain at a central NYC grid cell. Weather ends five days before each demand origin; latest weather ${report.weather.through}. Its retrospective results appear above, but it does not replace the selected model. Its published future predictions are retained for prospective comparison.` : 'Weather challenger unavailable for this run. The validated demand models continue without it.';
+}
