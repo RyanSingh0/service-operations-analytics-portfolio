@@ -84,7 +84,7 @@ function render() {
     p.append(textNode('strong', name + ': '), document.createTextNode(definition));
     el('definitions').append(p);
   }
-  renderChart(); renderGroups();
+  renderChart(); renderGroups(); ChartKit.backlog(report.daily);
 }
 
 function filteredGroups() {

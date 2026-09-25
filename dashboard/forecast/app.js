@@ -35,6 +35,9 @@ function render(resetCapacity=false){
   $('coverage').textContent='Test band coverage: '+series.test_interval_coverage_pct+'%. MAE is the mean absolute error in requests per day. Bands were calibrated on '+series.interval.calibration_days+' separate dates.';
   $('daily').replaceChildren();rows.forEach(r=>{const row=document.createElement('tr');[r.date,number(r.forecast),number(r.lower),number(r.upper),number(Math.max(0,r.forecast-capacity))].forEach(v=>cell(row,v));$('daily').append(row);});
   monitoring(name, series);
+  ChartKit.capacity(rows,capacity);
+  if(series.diagnostics){ChartKit.heatmap(series.diagnostics);ChartKit.calibration(series.diagnostics);ChartKit.retrospective(series.diagnostics);$('retro-note').textContent=series.diagnostics.method;}
+  else for(const id of ['heatmap','calibration','retro-chart']) $(id).textContent='Diagnostics will appear after the next successful model publication.';
   chart(series.history.slice(-42),rows);$('range-label').textContent=name+' · 42 observed days and '+rows.length+' estimated days.';
 }
 function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type}));const anchor=document.createElement('a');anchor.href=url;anchor.download=name;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
