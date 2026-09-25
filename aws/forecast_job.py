@@ -10,6 +10,7 @@ from serviceforecast.model import build
 from serviceforecast.source import fetch
 from serviceforecast.monitor import record_publication, update
 from serviceforecast.weather import fetch_weather
+from serviceforecast import health
 from usage_summary import summarize
 
 
@@ -20,9 +21,25 @@ def handler(event, context):
         'expires': {'N': str(int(time.time())+1200)}},
         ConditionExpression='attribute_not_exists(pk) OR expires < :now',
         ExpressionAttributeValues={':now': {'N': str(int(time.time()))}})
+    started = time.monotonic()
+    row = {'id': owner, 'started_at': datetime.now(timezone.utc).isoformat(), 'status': 'STARTED'}
+    def record_health():
+        try:
+            health.write(boto3.client('s3'), os.environ['DATA_BUCKET'], row)
+        except Exception as error:
+            print('Run health unavailable:', type(error).__name__)
+    record_health()
     try:
-        return run(event, lambda: assert_owner(ddb, table, owner))
+        result = run(event, lambda: assert_owner(ddb, table, owner), run_id=owner)
+        row['status'] = 'SUCCEEDED'
+        return result
+    except Exception:
+        row['status'] = 'FAILED'
+        raise
     finally:
+        row['duration_seconds'] = round(time.monotonic() - started, 3)
+        row['ended_at'] = datetime.now(timezone.utc).isoformat()
+        record_health()
         ddb.delete_item(TableName=table, Key={'pk': {'S': 'forecast-lock'}},
             ConditionExpression='#owner = :owner', ExpressionAttributeNames={'#owner': 'owner'},
             ExpressionAttributeValues={':owner': {'S': owner}})
@@ -34,7 +51,7 @@ def assert_owner(ddb, table, owner):
         raise ValueError('Forecast lease lost before publication')
 
 
-def run(event, verify_lease):
+def run(event, verify_lease, run_id=None):
     s3 = boto3.client('s3')
     metrics = boto3.client('cloudwatch')
     bucket, website = os.environ['DATA_BUCKET'], os.environ['WEB_BUCKET']
@@ -54,6 +71,11 @@ def run(event, verify_lease):
     verify_lease()
     state, monitoring = update(read_optional('forecast/monitor-state.json'), source, previous)
     report['monitoring'] = monitoring
+    try:
+        report['run_health'] = health.read(s3, bucket, exclude=run_id)
+    except Exception as error:
+        report['run_health'] = {'runs': [], 'note': 'Run history temporarily unavailable.'}
+        print('Run history unavailable:', type(error).__name__)
     try:
         report['usage'] = summarize(boto3.client('dynamodb'))
     except Exception as error:

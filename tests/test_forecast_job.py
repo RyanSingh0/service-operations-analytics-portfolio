@@ -25,6 +25,10 @@ def test_failed_attempt_releases_owned_lease(job, monkeypatch):
         job.handler({}, SimpleNamespace(aws_request_id='attempt-1'))
     assert ddb.put_item.call_args.kwargs['Item']['pk']['S'] == 'forecast-lock'
     assert ddb.delete_item.call_args.kwargs['ExpressionAttributeValues'][':owner']['S'] == 'attempt-1'
+    import json
+    records = [json.loads(call.kwargs['Body']) for call in ddb.put_object.call_args_list]
+    assert [r['status'] for r in records] == ['STARTED', 'FAILED']
+    assert records[-1]['duration_seconds'] >= 0
 
 
 def test_busy_lease_never_runs_or_deletes_another_owner(job, monkeypatch):
@@ -37,6 +41,16 @@ def test_busy_lease_never_runs_or_deletes_another_owner(job, monkeypatch):
         job.handler({}, SimpleNamespace(aws_request_id='attempt-2'))
     run.assert_not_called()
     ddb.delete_item.assert_not_called()
+    ddb.put_object.assert_not_called()
+
+
+def test_health_failure_does_not_hide_success(job, monkeypatch):
+    ddb = Mock()
+    ddb.put_object.side_effect = RuntimeError('telemetry unavailable')
+    monkeypatch.setattr(job.boto3, 'client', lambda name: ddb)
+    monkeypatch.setattr(job, 'run', Mock(return_value={'status': 'published'}))
+    assert job.handler({}, SimpleNamespace(aws_request_id='healthy')) == {'status': 'published'}
+    ddb.delete_item.assert_called_once()
 
 
 @pytest.mark.parametrize('drill', [True, False])

@@ -3,10 +3,11 @@ from datetime import date, datetime, timedelta, timezone
 from statistics import mean
 
 from serviceforecast.weather import extra_features
+from serviceforecast.diagnostics import diagnostics
 
 HORIZON = 14
 CANDIDATES = ('same_weekday', 'four_week_mean', 'seasonal_ridge')
-VERSION = 'seasonal-demand-v2-monitoring'
+VERSION = 'seasonal-demand-v3-diagnostics'
 
 
 def seasonal_values(values, origin, horizon):
@@ -165,6 +166,8 @@ def build(source, weather=None):
             'fitted_model': final, 'forecast': predictions,
             'history': [{'date': d.isoformat(), 'requests': v} for d, v in zip(days[-90:], values[-90:])],
             'test_predictions': [{**r, 'predicted': round(r['predicted'], 2)} for r in selected_test]}
+        report['series'][name]['diagnostics'] = diagnostics(
+            chosen, values, days, calibration_end, frozen, calibration, selected_test)
         if shadow:
             report['series'][name]['shadow_model'] = shadow
     report['weather'] = ({k: v for k, v in weather.items() if k != 'days'} if weather else
