@@ -2,6 +2,10 @@
 
 Three connected demonstrations: verified IT incident analytics, daily NYC 311 demand forecasts, and an interactive historical resolution-time model.
 
+[One-page case study (PDF)](docs/case-study.pdf) · [Model promotion and recovery policy](docs/model-operations.md)
+
+The dashboards include a weekday/lead-time error heatmap, interval calibration, a capacity trade-off curve, daily backlog balance, and critical-versus-moderate survival scenarios. Retrospective replay is labeled separately from published forecast monitoring. A run-health strip reports up to 30 recorded forecast attempts; its collection starts with the diagnostics release.
+
 **[IT dashboard](https://d17q1whdf7htno.cloudfront.net/) · [Current NYC 311 forecasts](https://d17q1whdf7htno.cloudfront.net/forecast/index.html) · [Resolution model](https://d17q1whdf7htno.cloudfront.net/resolution/index.html)**
 
 Screenshots captured from the deployed website on September 21, 2026. The pages continue updating on their scheduled runs.
