@@ -1,5 +1,17 @@
 # Measured usage and monthly estimate
 
+## September 25 measurement
+
+Cost Explorer reports **$0.379389 estimated account-wide unblended cost for September 1–25**
+(September 26 end-exclusive), retrieved September 25 at 21:25 New York time. This is
+month-to-date account spending, not a project-only allocation or a finalized monthly bill.
+Versioned storage across the project data and website buckets totals approximately 384.4 MB.
+The first diagnostics release recorded an 87.779-second application run, including source
+fetches. Run times vary with upstream latency; this single observation is not a monthly cost.
+The $2–$5 planning allowance below remains an estimate, and the $25 budget remains an alert.
+
+## Earlier measurements
+
 Updated 20 September 2026 in US East (N. Virginia). Cost Explorer now reports **$0.23494 account-wide unblended cost** for September 1–19 (September 20 end-exclusive), marked **Estimated**. This is a partial-month account measurement, not a finalized invoice or a project-only allocation. It includes $0.20607 Glue, $0.01842 S3, $0.01 tax, and small other charges. It must not be extrapolated as a complete monthly bill.
 
 The daily NYC forecast ran automatically on September 20: 7.090 seconds execution, 7.411 seconds billed, 512 MB configured, 105 MB peak memory. At $0.0000166667 per GB-second, 31 similar invocations cost about **$0.0019/month in Lambda compute alone**, before free allowances. Requests, monitoring, logs, storage, and website delivery are additional. The historical resolution model trains locally and uses static browser inference.

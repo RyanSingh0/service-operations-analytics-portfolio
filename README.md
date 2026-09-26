@@ -8,9 +8,11 @@ The dashboards include a weekday/lead-time error heatmap, interval calibration, 
 
 **[IT dashboard](https://d17q1whdf7htno.cloudfront.net/) · [Current NYC 311 forecasts](https://d17q1whdf7htno.cloudfront.net/forecast/index.html) · [Resolution model](https://d17q1whdf7htno.cloudfront.net/resolution/index.html)**
 
-Screenshots captured from the deployed website on September 21, 2026. The pages continue updating on their scheduled runs.
+Screenshots captured from the deployed website on September 25, 2026. The pages continue updating on their scheduled runs.
 
 ![NYC 311 demand forecast, uncertainty bands and measured model comparisons](docs/assets/forecast.jpg)
+
+![Weekday and lead-time errors beside nominal versus observed interval coverage](docs/assets/diagnostics.jpg)
 
 ![Interactive resolution model with survival probabilities and later-period evaluation](docs/assets/resolution.jpg)
 
@@ -60,13 +62,13 @@ These observations refer to the **May 8, 2016** replay snapshot; the scheduled d
 
 ## Models and measured results
 
-The NYC pipeline compares same-weekday-last-week, four-week weekday means, and seasonal regression using chronological selection, calibration, and test windows. The September 21 publication covers data through September 19; its citywide selected baseline has 4.66% test WAPE. Results change as the rolling window advances. Visitors can compare boroughs, horizons, uncertainty bands, and an illustrative capacity threshold.
+The NYC pipeline compares same-weekday-last-week, four-week weekday means, and seasonal regression using chronological selection, calibration, and test windows. The September 25 evening publication covers data through September 23. Citywide selection favored same-weekday-last-week on the earlier validation window; its test WAPE is 6.11%, versus 4.97% for the four-week mean and 5.12% for seasonal regression. The selection winner is not always the test winner, and the test is not used to revise that choice. Results change as the rolling window advances.
 
 The historical resolution model retains censored cases, splits incidents by time, and compares pooled and priority Kaplan–Meier baselines with a piecewise hazard model. On 3,496 later test incidents, mean censor-adjusted Brier score improves from 0.27417 to 0.26013 (about 5.1%). **Observed-event median MAE does not beat the pooled baseline: 47.71 vs 47.25 hours.** The page exposes priority-level errors and limitations. Inputs remain in the browser; there is no paid inference endpoint.
 
 ## Forecast monitoring and additional signals
 
-The daily job logs predictions before their target dates, scores them after actuals mature, and reports eight weeks of errors and interval coverage. The chart starts empty and fills with real operating evidence. Anonymous page-view totals are aggregated by the same daily job and displayed on all three pages.
+The daily job logs predictions before their target dates, scores them after actuals mature, and reports eight weeks of errors and interval coverage. Published-outcome charts fill with real operating evidence; a separate retrospective chart supplies historical context without inventing live records. Anonymous page-view totals are aggregated by the same daily job and displayed on all three pages.
 
 The weekday baseline intentionally repeats its seven weekday values in a 14-day forecast. Selection is based on an earlier validation window; the page explains the comparison separately from test performance. More complex regression does not win for every borough.
 
