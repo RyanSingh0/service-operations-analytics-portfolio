@@ -23,6 +23,8 @@ Missing borough-days fail publication instead of becoming fabricated zeros. Dupl
 
 Daily updates reread the most recent 60 days to absorb revisions. A full two-year refresh every 30 days catches older corrections. This means older corrections may take up to 30 days to enter the model. Immutable attempt reports retain source metadata and fingerprints; the private cached source is the latest aggregate window.
 
+Aggregate requests cover at most 14 days each. Transient network failures, HTTP 429, and HTTP 5xx receive up to three attempts with short backoff and a socket timeout of at most 45 seconds. A batch that still fails is split into smaller, non-overlapping date windows, down to one day. Permanent HTTP errors fail immediately. All requests share a 600-second extraction budget checked around requests and between retries; socket timeouts are not a strict wall-clock cancellation mechanism. The Lambda's 900-second limit remains the final bound. Partial batches never replace the source cache or public report: the complete 730-day window must pass validation first.
+
 ## Model and evaluation contract
 
 Target: requests created on each of the 14 dates after the latest complete data date, for each borough and NYC total. The publication lag means the first forecast dates may already be in the past at viewing time; these are nowcasts, clearly disclosed by the page.

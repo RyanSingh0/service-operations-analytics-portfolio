@@ -8,22 +8,63 @@ from datetime import date, datetime, timedelta, timezone
 
 ENDPOINT = 'https://data.cityofnewyork.us/resource/erm2-nwe9.json'
 BOROUGHS = ('BRONX', 'BROOKLYN', 'MANHATTAN', 'QUEENS', 'STATEN ISLAND')
+BATCH_DAYS = 14
+EXTRACT_SECONDS = 600
 
 
-def query(parameters):
+class ExtractDeadlineExceeded(RuntimeError):
+    pass
+
+
+def remaining_seconds(deadline):
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise ExtractDeadlineExceeded('Source extraction exceeded its time budget; preserving the previous report')
+    return remaining
+
+
+def retryable(error):
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code == 429 or 500 <= error.code < 600
+    return isinstance(error, (urllib.error.URLError, TimeoutError))
+
+
+def query(parameters, *, deadline=None):
+    deadline = deadline if deadline is not None else time.monotonic() + EXTRACT_SECONDS
     url = ENDPOINT + '?' + urllib.parse.urlencode(parameters)
     for attempt in range(3):
         try:
             request = urllib.request.Request(url, headers={'User-Agent': 'ServiceOperationsAnalytics/1.0'})
-            with urllib.request.urlopen(request, timeout=90) as response:
+            with urllib.request.urlopen(request, timeout=min(45, remaining_seconds(deadline))) as response:
                 result = json.load(response)
+            remaining_seconds(deadline)
             if not isinstance(result, list):
                 raise ValueError('Source returned an unexpected response')
             return result
-        except (urllib.error.URLError, TimeoutError):
-            if attempt == 2:
+        except (urllib.error.URLError, TimeoutError) as error:
+            if not retryable(error) or attempt == 2:
                 raise
-            time.sleep(2 ** attempt)
+            delay = min(2 ** attempt, remaining_seconds(deadline))
+            print(f'Source request retry {attempt+1}: {type(error).__name__}', flush=True)
+            time.sleep(delay)
+
+
+def fetch_window(start, stop, deadline):
+    remaining_seconds(deadline)
+    try:
+        rows = query({'$select': 'date_trunc_ymd(created_date) as day, borough, count(*) as requests',
+            '$where': f"created_date >= '{start}T00:00:00' AND created_date < '{stop}T00:00:00'",
+            '$group': 'day, borough', '$order': 'day, borough', '$limit': '10000'}, deadline=deadline)
+    except (urllib.error.URLError, TimeoutError) as error:
+        if not retryable(error) or (stop-start).days <= 1:
+            raise
+        middle = start + timedelta(days=(stop-start).days // 2)
+        print(f'Splitting slow source batch: {start} to {stop-timedelta(days=1)}', flush=True)
+        return fetch_window(start, middle, deadline) + fetch_window(middle, stop, deadline)
+    if len(rows) >= 10000:
+        raise ValueError('Source query may be truncated')
+    print(f'Fetched daily aggregates: {start} to {stop-timedelta(days=1)}', flush=True)
+    return rows
 
 
 def validate(rows, start, end):
@@ -59,9 +100,10 @@ def validate(rows, start, end):
 
 
 def fetch(today=None, previous=None):
+    deadline = time.monotonic() + EXTRACT_SECONDS
     today = today or datetime.now(timezone.utc).date()
     latest = query({'$select': 'max(created_date) as latest',
-                    '$where': f"created_date >= '{today-timedelta(days=14)}T00:00:00'"})
+                    '$where': f"created_date >= '{today-timedelta(days=14)}T00:00:00'"}, deadline=deadline)
     if not latest or not latest[0].get('latest'):
         raise ValueError('No recent source observations')
     latest_day = date.fromisoformat(latest[0]['latest'][:10])
@@ -92,14 +134,8 @@ def fetch(today=None, previous=None):
                     rows.append({'day': day, 'borough': 'Unknown', 'requests': str(unknown)})
             cursor = refresh_from
     while cursor <= end:
-        stop = min(cursor+timedelta(days=183), end+timedelta(days=1))
-        chunk = query({'$select': 'date_trunc_ymd(created_date) as day, borough, count(*) as requests',
-            '$where': f"created_date >= '{cursor}T00:00:00' AND created_date < '{stop}T00:00:00'",
-            '$group': 'day, borough', '$order': 'day, borough', '$limit': '10000'})
-        if len(chunk) >= 10000:
-            raise ValueError('Source query may be truncated')
-        rows.extend(chunk)
-        print(f'Fetched daily aggregates: {cursor} to {stop-timedelta(days=1)}', flush=True)
+        stop = min(cursor+timedelta(days=BATCH_DAYS), end+timedelta(days=1))
+        rows.extend(fetch_window(cursor, stop, deadline))
         cursor = stop
     result = validate(rows, start, end)
     result['source'] = {'name': 'NYC 311 Service Requests from 2020 to Present',
