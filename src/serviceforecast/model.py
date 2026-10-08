@@ -7,7 +7,10 @@ from serviceforecast.diagnostics import diagnostics
 
 HORIZON = 14
 CANDIDATES = ('same_weekday', 'four_week_mean', 'seasonal_ridge')
-VERSION = 'seasonal-demand-v3-diagnostics'
+VERSION = 'seasonal-demand-v4-walk-forward'
+SELECTION_FOLDS = 3
+SELECTION_DAYS = 28
+MIN_IMPROVEMENT = .02
 
 
 def seasonal_values(values, origin, horizon):
@@ -106,12 +109,58 @@ def metrics(rows):
             'days': len(rows)}
 
 
+def consistent_improvement(candidate, reference):
+    wins = sum(c < r for c, r in zip(candidate, reference))
+    reference_error, candidate_error = sum(reference), sum(candidate)
+    improvement = 1-candidate_error/reference_error if reference_error > 0 else None
+    eligible = (reference_error > 0 and candidate_error <= (1-MIN_IMPROVEMENT)*reference_error
+                and wins >= 2)
+    return {'eligible': eligible, 'window_wins': wins, 'windows': SELECTION_FOLDS,
+            'relative_improvement_pct': round(100*improvement, 2) if improvement is not None else None}
+
+
+def select_model(values, days, end, weather=None):
+    start = end-SELECTION_FOLDS*SELECTION_DAYS
+    if start < 180 or end > len(values):
+        raise ValueError('Selection requires 180 training days and three complete validation windows')
+    candidates = (*CANDIDATES, 'weather_calendar_ridge') if weather else CANDIDATES
+    pooled = {name: [] for name in candidates}
+    errors = {name: [] for name in candidates}
+    folds = []
+    for first in range(start, end, SELECTION_DAYS):
+        stop = first+SELECTION_DAYS
+        fitted = fit(values, days, first)
+        shadow = fit(values, days, first, weather) if weather else None
+        scores = {}
+        for name in candidates:
+            rows = evaluate(name, values, days, first, stop,
+                            shadow if name == 'weather_calendar_ridge' else fitted,
+                            weather if name == 'weather_calendar_ridge' else None)
+            pooled[name].extend(rows)
+            errors[name].append(sum(abs(r['actual']-r['predicted']) for r in rows)/len(rows))
+            scores[name] = metrics(rows)
+        folds.append({'start': days[first].isoformat(), 'end': days[stop-1].isoformat(),
+                      'training_through': fitted['training_through'], 'metrics': scores})
+    baseline_gate = consistent_improvement(errors['same_weekday'], errors['four_week_mean'])
+    baseline = 'same_weekday' if baseline_gate['eligible'] else 'four_week_mean'
+    regression_gate = consistent_improvement(errors['seasonal_ridge'], errors[baseline])
+    chosen = 'seasonal_ridge' if regression_gate['eligible'] else baseline
+    decision = {'policy': 'three-window-v1', 'folds': folds, 'baseline': baseline,
+                'baseline_gate': baseline_gate, 'regression_gate': regression_gate,
+                'minimum_relative_improvement_pct': 100*MIN_IMPROVEMENT, 'minimum_window_wins': 2,
+                'reference': 'four_week_mean',
+                'rule': 'Start with the four-week mean. Same weekday must improve pooled MAE by at least 2% '
+                        'and win at least two of three windows. Seasonal regression must pass the same '
+                        'gate against that baseline. Ties keep the reference. Weather remains shadow-only.'}
+    return chosen, {name: metrics(rows) for name, rows in pooled.items()}, decision
+
+
 def build(source, weather=None):
     days = [date.fromisoformat(d) for d in source['dates']]
     n = len(days)
     if n < 365 or any(b-a != timedelta(days=1) for a, b in zip(days, days[1:])):
         raise ValueError('At least one complete year of daily data required')
-    training_end, validation_end, calibration_end = n-112, n-84, n-42
+    training_end, validation_end, calibration_end = n-168, n-84, n-42
     report = {'model_version': VERSION, 'generated_at': datetime.now(timezone.utc).isoformat(),
         'source': source['source'], 'quality': source['quality'], 'horizon_days': HORIZON,
         'evaluation': {'selection_start': days[training_end].isoformat(),
@@ -119,18 +168,16 @@ def build(source, weather=None):
             'calibration_start': days[validation_end].isoformat(),
             'calibration_end': days[calibration_end-1].isoformat(),
             'test_start': days[calibration_end].isoformat(), 'test_end': days[-1].isoformat(),
-            'method': 'Disjoint 28-day selection, 42-day calibration, 42-day test; 14-day rolling origins. '
+            'selection_windows': SELECTION_FOLDS, 'selection_window_days': SELECTION_DAYS,
+            'method': 'Three disjoint 28-day walk-forward selection windows, then 42-day calibration and 42-day test; '
+                      'expanding training refitted before each selection window; 14-day rolling origins. '
                       'Test model frozen before calibration. Lags use only observations through each origin. '
                       'Current revised extract; historical publication vintages are unavailable.'},
         'series': {}}
     for name, values in source['series'].items():
         if len(values) != n or any(not isinstance(v, int) or v < 0 for v in values):
             raise ValueError('Invalid daily series')
-        initial = fit(values, days, training_end)
-        validation = {candidate: metrics(evaluate(candidate, values, days, training_end, validation_end, initial))
-                      for candidate in CANDIDATES}
-        baseline = min(CANDIDATES[:2], key=lambda key: validation[key]['mae'])
-        chosen = 'seasonal_ridge' if validation['seasonal_ridge']['mae'] < .98*validation[baseline]['mae'] else baseline
+        chosen, validation, selection = select_model(values, days, validation_end, weather)
         frozen = fit(values, days, validation_end)
         calibration = evaluate(chosen, values, days, validation_end, calibration_end, frozen)
         errors = sorted(abs(r['actual']-r['predicted']) for r in calibration)
@@ -142,9 +189,6 @@ def build(source, weather=None):
         final = fit(values, days, n)
         shadow = fit(values, days, n, weather) if weather else None
         if weather:
-            earlier = fit(values, days, training_end, weather)
-            validation['weather_calendar_ridge'] = metrics(evaluate('weather_calendar_ridge', values, days,
-                training_end, validation_end, earlier, weather))
             shadow_frozen = fit(values, days, validation_end, weather)
             test_metrics['weather_calendar_ridge'] = metrics(evaluate('weather_calendar_ridge', values, days,
                 calibration_end, n, shadow_frozen, weather))
@@ -160,6 +204,7 @@ def build(source, weather=None):
                 predictions[-1]['candidates']['weather_calendar_ridge'] = round(predict(
                     'weather_calendar_ridge', values, days, n-1, horizon, shadow, weather), 2)
         report['series'][name] = {'selected_model': chosen, 'selection_metrics': validation,
+            'selection': selection,
             'test_metrics': test_metrics, 'test_interval_coverage_pct': round(100*coverage, 1),
             'interval': {'nominal_pct': 90, 'calibration_days': len(errors), 'half_width': round(width, 2),
                          'interpretation': 'Empirical error band; time dependence and drift mean 90% coverage is not guaranteed.'},

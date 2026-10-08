@@ -48,7 +48,7 @@ async function load(){
     $('data-through').textContent='Observed data through '+report.source.data_through;$('updated').textContent='Forecast generated '+new Date(report.generated_at).toLocaleString();
     const age=(Date.now()-Date.parse(report.generated_at))/86400000,sourceAge=(Date.now()-Date.parse(report.source.data_through+'T00:00:00Z'))/86400000;
     $('freshness').textContent=age>3||sourceAge>7?'Update delayed':'Daily forecast current';$('freshness').className='badge'+(age>3||sourceAge>7?' warning':'');
-    $('evaluation').textContent=`Selection: ${report.evaluation.selection_start}–${report.evaluation.selection_end}. Calibration: ${report.evaluation.calibration_start}–${report.evaluation.calibration_end}. Untouched test: ${report.evaluation.test_start}–${report.evaluation.test_end}. ${report.evaluation.method}`;
+    $('evaluation').textContent=`Selection: ${report.evaluation.selection_start}–${report.evaluation.selection_end}. Calibration: ${report.evaluation.calibration_start}–${report.evaluation.calibration_end}. Separate test: ${report.evaluation.test_start}–${report.evaluation.test_end}. ${report.evaluation.method}`;
     $('quality').textContent=`Validated ${report.quality.days} complete daily observations per borough. Missing borough-days fail publication rather than becoming zeros. Unknown-borough requests retained in city totals: ${number(report.quality.unknown_borough_requests)}.`;
     $('error').hidden=true;$('content').hidden=false;render(!old);
   }catch(error){$('error').textContent='Could not refresh the forecast. '+(report?'The last loaded report remains visible.':'Please try again later.');$('error').hidden=false;$('freshness').textContent='Refresh failed';$('freshness').className='badge warning';}
@@ -72,7 +72,19 @@ function monitoring(name, series) {
   $('monitor-leads').textContent=m ? 'Error by lead time: '+m.by_lead.map(v=>`${v.lead} days: ${v.wape_pct===null?'pending':v.wape_pct+'% WAPE'} (${v.predictions} forecasts)`).join(' · ') : '';
   const revision=monitor?.source_revisions;
   $('revision-info').textContent=revision?.changed_city_dates!==undefined ? `Source corrections since the previous extract: ${revision.changed_city_dates} city dates changed; ${number(revision.absolute_revised_requests)} requests of absolute revision. These describe published records, not a causal demand change.` : revision?.status||'';
-  const v=series.selection_metrics;
-  $('selection-reason').textContent=`The selected ${names[series.selected_model]} had validation MAE ${v[series.selected_model].mae}; seasonal regression had ${v.seasonal_ridge.mae}. Regression needs a 2% improvement to replace the better baseline. `+(series.selected_model==='four_week_mean'?'The same four observed matching weekdays inform each future weekday, so week two repeats week one exactly. This is expected baseline behavior. ':'Model selection is specific to this borough and evaluation window. ')+(series.test_interval_coverage_pct<80?'Retrospective warning: the nominal 90% band covered fewer than 80% of test dates.':'');
+  const v=series.selection_metrics, selection=series.selection;
+  $('selection-reason').textContent=selection
+    ? `${names[series.selected_model]} selected across three 28-day windows (pooled MAE ${v[series.selected_model].mae} requests/day). ${selection.rule}`
+    : 'This report used the earlier single-window selection policy.';
+  $('selection-windows').replaceChildren();
+  for(const [key,score] of Object.entries(v)){
+    const row=document.createElement('tr');cell(row,names[key]+(key===series.selected_model?' ✓':''));
+    for(const fold of selection?.folds||[]) cell(row,fold.metrics[key]?.wape_pct+'%');
+    if(!selection) for(let i=0;i<3;i++) cell(row,'—');
+    cell(row,score.wape_pct+'%');$('selection-windows').append(row);
+  }
+  $('selection-dates').textContent=selection ? selection.folds.map((f,i)=>`Window ${i+1}: ${f.start}–${f.end}`).join(' · ') : '';
+  const describe=(label,gate)=>`${label}: ${gate.window_wins}/${gate.windows} wins; ${gate.relative_improvement_pct===null?'no relative gain measurable':gate.relative_improvement_pct+'% relative MAE improvement'}; ${gate.eligible?'passes':'does not pass'} the gate.`;
+  $('selection-gates').textContent=selection ? describe('Same weekday versus four-week mean',selection.baseline_gate)+' '+describe('Regression versus '+names[selection.baseline],selection.regression_gate) : '';
   $('weather-info').textContent=report.weather?.through ? `Weather/calendar challenger evaluated with federal-holiday indicators and lagged temperature/rain at a central NYC grid cell. Weather ends five days before each demand origin; latest weather ${report.weather.through}. Its retrospective results appear above, but it does not replace the selected model. Its published future predictions are retained for prospective comparison.` : 'Weather challenger unavailable for this run. The validated demand models continue without it.';
 }

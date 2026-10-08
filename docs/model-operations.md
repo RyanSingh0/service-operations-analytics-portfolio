@@ -1,9 +1,11 @@
 # Forecast promotion and recovery policy
 
 The daily job refreshes data, selects among the existing demand models using an earlier
-validation window, publishes a forecast, and preserves future predictions for scoring.
+set of three 28-day validation windows, publishes a forecast, and preserves future predictions for scoring.
 The weather/calendar model is a shadow challenger. It cannot be selected automatically.
 This policy governs a reviewed change to that eligibility, not daily baseline selection.
+
+Daily selection starts from the four-week mean. Same-weekday, then seasonal regression, must each beat their reference by at least 2% pooled MAE and win at least two of the three windows. This does not use the subsequent calibration or test targets. The published per-window scores and gate outcomes explain the choice. It reduces dependence on one month; it does not guarantee stability or future accuracy.
 
 ## Promotion gate
 
