@@ -76,15 +76,17 @@ function monitoring(name, series) {
   $('selection-reason').textContent=selection
     ? `${names[series.selected_model]} selected across three 28-day windows (pooled MAE ${v[series.selected_model].mae} requests/day). ${selection.rule}`
     : 'This report used the earlier single-window selection policy.';
-  $('selection-windows').replaceChildren();
-  for(const [key,score] of Object.entries(v)){
-    const row=document.createElement('tr');cell(row,names[key]+(key===series.selected_model?' ✓':''));
-    for(const fold of selection?.folds||[]) cell(row,fold.metrics[key]?.wape_pct+'%');
-    if(!selection) for(let i=0;i<3;i++) cell(row,'—');
-    cell(row,score.wape_pct+'%');$('selection-windows').append(row);
+  if($('selection-windows')){
+    $('selection-windows').replaceChildren();
+    for(const [key,score] of Object.entries(v)){
+      const row=document.createElement('tr');cell(row,names[key]+(key===series.selected_model?' ✓':''));
+      for(const fold of selection?.folds||[]) cell(row,fold.metrics[key]?.wape_pct+'%');
+      if(!selection) for(let i=0;i<3;i++) cell(row,'—');
+      cell(row,score.wape_pct+'%');$('selection-windows').append(row);
+    }
+    $('selection-dates').textContent=selection ? selection.folds.map((f,i)=>`Window ${i+1}: ${f.start}–${f.end}`).join(' · ') : '';
+    const describe=(label,gate)=>`${label}: ${gate.window_wins}/${gate.windows} wins; ${gate.relative_improvement_pct===null?'no relative gain measurable':gate.relative_improvement_pct+'% relative MAE improvement'}; ${gate.eligible?'passes':'does not pass'} the gate.`;
+    $('selection-gates').textContent=selection ? describe('Same weekday versus four-week mean',selection.baseline_gate)+' '+describe('Regression versus '+names[selection.baseline],selection.regression_gate) : '';
   }
-  $('selection-dates').textContent=selection ? selection.folds.map((f,i)=>`Window ${i+1}: ${f.start}–${f.end}`).join(' · ') : '';
-  const describe=(label,gate)=>`${label}: ${gate.window_wins}/${gate.windows} wins; ${gate.relative_improvement_pct===null?'no relative gain measurable':gate.relative_improvement_pct+'% relative MAE improvement'}; ${gate.eligible?'passes':'does not pass'} the gate.`;
-  $('selection-gates').textContent=selection ? describe('Same weekday versus four-week mean',selection.baseline_gate)+' '+describe('Regression versus '+names[selection.baseline],selection.regression_gate) : '';
   $('weather-info').textContent=report.weather?.through ? `Weather/calendar challenger evaluated with federal-holiday indicators and lagged temperature/rain at a central NYC grid cell. Weather ends five days before each demand origin; latest weather ${report.weather.through}. Its retrospective results appear above, but it does not replace the selected model. Its published future predictions are retained for prospective comparison.` : 'Weather challenger unavailable for this run. The validated demand models continue without it.';
 }
