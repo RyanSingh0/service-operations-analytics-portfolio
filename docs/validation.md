@@ -1,6 +1,14 @@
 # Validation record
 
-Verified 18–19 September 2026. Reference snapshot: `2016-05-08 23:59:59`, source-local time. The source is fixed historical data; these results describe the deployed demonstration.
+Latest forecast release verified October 9, 2026; see the [selection release record](releases/2026-10-08-selection.md). Historical IT checks below were verified September 18–19, 2026, at reference snapshot `2016-05-08 23:59:59`, source-local time. The IT source is fixed historical data.
+
+## October 8–9 forecast selection release
+
+All 77 tests passed, along with Python lint and the forecast JavaScript syntax check. Selection tests cover chronological training cutoffs, three contiguous windows, two-window wins, the 2% threshold, ties, zero reference error, insufficient history, exclusion of later calibration/test targets, and isolation of earlier folds from later changes.
+
+Cloud verification found model version `seasonal-demand-v4-walk-forward` and three selection windows in all six series. The served forecast report, HTML and JavaScript matched the release artifacts. Browser checks confirmed the comparison table, gate explanations, current freshness state and borough switching. The final JavaScript also tolerates cached HTML that lacks the new comparison element.
+
+The daily 18:00 UTC schedule remained enabled and all three forecast alarms were OK at the October 9 check. Public [incident workflow](https://github.com/RyanSingh0/service-operations-analytics-portfolio/actions/runs/37951659089), [forecast workflow](https://github.com/RyanSingh0/service-operations-analytics-portfolio/actions/runs/37951659042), and [project CI](https://github.com/RyanSingh0/service-operations-analytics-portfolio/actions/runs/37951659031) checks succeeded at compatibility commit `e3f9f89`. Forecast publication used the existing administrator release path; this does not claim that GitHub forecast deployment was enabled.
 
 ## Reconciled results
 

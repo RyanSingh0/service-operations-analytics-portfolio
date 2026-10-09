@@ -8,7 +8,11 @@ The dashboards include a weekday/lead-time error heatmap, interval calibration, 
 
 **[IT dashboard](https://d17q1whdf7htno.cloudfront.net/) · [Current NYC 311 forecasts](https://d17q1whdf7htno.cloudfront.net/forecast/index.html) · [Resolution model](https://d17q1whdf7htno.cloudfront.net/resolution/index.html)**
 
-Screenshots captured from the deployed website on September 25, 2026. The pages continue updating on their scheduled runs.
+The model-selection comparison below was captured from the deployed website on October 9, 2026. The other screenshots show the September 25 release. The pages continue updating on their scheduled runs.
+
+![Three chronological validation windows and the consistency gates explaining the selected model](docs/assets/selection.jpg)
+
+[October selection release and verification](docs/releases/2026-10-08-selection.md)
 
 ![NYC 311 demand forecast, uncertainty bands and measured model comparisons](docs/assets/forecast.jpg)
 
@@ -62,7 +66,11 @@ These observations refer to the **May 8, 2016** replay snapshot; the scheduled d
 
 ## Models and measured results
 
-The NYC pipeline compares same-weekday-last-week, four-week weekday means, and seasonal regression using three chronological 28-day selection windows followed by separate calibration and test windows. Candidates need a 2% pooled MAE improvement and wins in at least two windows to replace their reference baseline. The September 25 evening publication covers data through September 23. Citywide selection favored same-weekday-last-week on the earlier validation window; its test WAPE is 6.11%, versus 4.97% for the four-week mean and 5.12% for seasonal regression. The selection winner is not always the test winner, and the test is not used to revise that choice. Results change as the rolling window advances.
+The NYC pipeline compares same-weekday-last-week, four-week weekday means, and seasonal regression using **three chronological 28-day selection windows**, followed by separate 42-day calibration and 42-day test windows. Selection starts from the four-week mean. Same-weekday, then regression, must improve pooled MAE by at least 2% and win at least two windows against their reference. The dashboard publishes the window scores and gate outcomes so the choice can be inspected.
+
+The October 8 publication covers data through October 6. Citywide same-weekday wins two of three selection windows with 5.29% lower pooled MAE than the four-week mean. Its later test WAPE is **7.10%, versus 5.68% for the four-week mean and 5.91% for regression**. A better test score does not override the earlier selection decision. Its test band coverage is **71.4% against a 90% target**, an unresolved limitation. Results change as the rolling window advances.
+
+This release reduces dependence on one validation month; it does not establish an accuracy improvement. The policy was changed after earlier historical results had been inspected, so reused test scores are retrospective evidence. Future published forecasts and matured actuals are the prospective check. See the [release record](docs/releases/2026-10-08-selection.md) for window dates, comparisons and verification.
 
 The historical resolution model retains censored cases, splits incidents by time, and compares pooled and priority Kaplan–Meier baselines with a piecewise hazard model. On 3,496 later test incidents, mean censor-adjusted Brier score improves from 0.27417 to 0.26013 (about 5.1%). **Observed-event median MAE does not beat the pooled baseline: 47.71 vs 47.25 hours.** The page exposes priority-level errors and limitations. Inputs remain in the browser; there is no paid inference endpoint.
 
@@ -72,7 +80,7 @@ The daily job logs predictions before their target dates, scores them after actu
 
 The weekday baseline intentionally repeats its seven weekday values in a 14-day forecast. Selection uses three earlier validation windows; the page publishes each window’s error and the consistency gates separately from test performance. More complex regression does not win for every borough.
 
-A weather/calendar challenger now includes federal holidays and lagged temperature/rain. On the September 21 extract, its citywide test WAPE was 5.52%, compared with 4.66% for the selected weekday mean. It remains a logged challenger rather than being promoted. Source-revision counts and demand-shift diagnostics support investigation of changing reporting patterns. See [monitoring and experiment results](docs/forecast-monitoring.md).
+A weather/calendar challenger includes federal holidays and lagged temperature/rain. On the October 6 extract, its citywide pooled selection WAPE is 9.22% and its later test WAPE is 5.84%. It remains shadow-only: the later test result does not qualify it for promotion. Source-revision counts and demand-shift diagnostics support investigation of changing reporting patterns. See [monitoring and experiment results](docs/forecast-monitoring.md) and the [promotion policy](docs/model-operations.md).
 
 ## Automation and cost
 

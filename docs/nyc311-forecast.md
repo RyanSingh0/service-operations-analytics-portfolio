@@ -47,7 +47,9 @@ After selection, the regression is refitted using only data before the calibrati
 
 MAE measures requests/day. WAPE is `sum(abs(actual - forecast)) / sum(actual) * 100`, not a percentage of correctly predicted requests. Band coverage is the percentage of test actuals inside their unrounded predicted error bands.
 
-## Initial results
+## Initial results — original single-window policy
+
+This historical snapshot predates the three-window policy. See the [October selection release](releases/2026-10-08-selection.md) for the revised method's dated results and verification.
 
 Selection: May 29–June 25, 2026. Calibration: June 26–August 6. Untouched test: August 7–September 17. Results below will change with new data.
 
