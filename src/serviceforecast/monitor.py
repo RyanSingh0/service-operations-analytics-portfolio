@@ -3,6 +3,25 @@ from datetime import date, datetime, timedelta
 from statistics import mean
 from zoneinfo import ZoneInfo
 
+from serviceforecast.intervals import score as interval_score
+
+
+def cohort(rows, pending=0):
+    coverage = mean(r['lower'] <= r['actual'] <= r['upper'] for r in rows)*100 if rows else None
+    distinct = len({r['target'] for r in rows})
+    total = sum(r['actual'] for r in rows)
+    enough = len(rows) >= 28 and distinct >= 14
+    return {'scored_predictions': len(rows), 'distinct_target_dates': distinct,
+            'awaiting_mature_actuals': pending,
+            'target_start': min((r['target'] for r in rows), default=None),
+            'target_end': max((r['target'] for r in rows), default=None),
+            'coverage_pct': round(coverage, 1) if coverage is not None else None,
+            'wape_pct': round(100*sum(abs(r['prediction']-r['actual']) for r in rows)/total, 2) if total else None,
+            'below_band': sum(r['actual'] < r['lower'] for r in rows),
+            'above_band': sum(r['actual'] > r['upper'] for r in rows),
+            'mean_bias': round(mean(r['prediction']-r['actual'] for r in rows), 2) if rows else None,
+            'status': 'Collecting outcomes' if not enough else 'Undercoverage warning' if coverage < 80 else 'Monitoring'}
+
 
 def revision_summary(previous, current):
     if not previous:
@@ -31,11 +50,11 @@ def issuance(report):
                     'issued_at': report['generated_at'], 'source_through': report['source']['data_through'],
                     'lead_days': lead, 'model': data['selected_model'], 'version': report['model_version'],
                     'prediction': row['forecast'], 'lower': row['lower'], 'upper': row['upper'],
-                    'candidates': row.get('candidates', {})})
+                    'candidates': row.get('candidates', {}), 'shadow_intervals': row.get('shadow_intervals', {})})
     return {'issued_date': issued.isoformat(), 'rows': rows}
 
 
-def update(state, source, previous=None):
+def update(state, source, previous=None, current_version=None):
     state = state or {'issues': {}, 'final_actuals': {}, 'started_at': source['source']['retrieved_at']}
     cutoff = date.fromisoformat(source['source']['data_through'])
     oldest = (cutoff - timedelta(days=120)).isoformat()
@@ -45,19 +64,27 @@ def update(state, source, previous=None):
     mature = (cutoff - timedelta(days=7)).isoformat()
     grouped = defaultdict(list)
     provisional = defaultdict(int)
+    version_pending = defaultdict(int)
+    issued_versions = defaultdict(set)
+    shadow_pending = defaultdict(int)
     for rows in state['issues'].values():
         for row in rows:
             target, series = row['target'], row['series']
-            if target not in dates:
-                continue
+            version = row.get('version', 'unversioned')
+            issued_versions[series].add(version)
             if target > mature:
                 provisional[series] += 1
+                version_pending[(series, version)] += 1
+                for method in row.get('shadow_intervals', {}):
+                    shadow_pending[(series, method)] += 1
+                continue
+            if target not in dates:
                 continue
             key = series + '|' + target
             state['final_actuals'].setdefault(key, {'value': source['series'][series][dates[target]],
                 'observed_at': source['source']['retrieved_at'], 'source_sha256': source['source']['sha256']})
             grouped[series].append({**row, 'actual': state['final_actuals'][key]['value']})
-    summary = {'started_at': state['started_at'], 'through': mature, 'series': {},
+    summary = {'started_at': state['started_at'], 'through': mature, 'series': {}, 'current_version': current_version,
         'source_revisions': revision_summary(previous, source),
         'contract': 'First successful publication per New York calendar day; only future target dates. '
                     'Actuals freeze once the source cutoff passes the target by 7 days. '
@@ -82,6 +109,23 @@ def update(state, source, previous=None):
             'demand_shift_warning': shift is not None and abs(shift) > 30,
             'wape_pct': round(100*sum(abs(r['prediction']-r['actual']) for r in recent)/total, 2) if total else None,
             'weekly': [], 'by_lead': [], 'candidate_wape_pct': {}}
+        record['by_version'] = {version: cohort([r for r in recent if r.get('version', 'unversioned') == version],
+                                               version_pending[(series, version)])
+                                for version in sorted(issued_versions[series] | ({current_version} if current_version else set()))}
+        totals = cohort(recent)
+        record['misses'] = {k: totals[k] for k in ('above_band', 'below_band', 'mean_bias')}
+        methods = set().union(*(r.get('shadow_intervals', {}) for r in recent))
+        methods.update(method for (s, method), count in shadow_pending.items() if s == series and count)
+        record['interval_challengers'] = {}
+        for method in sorted(methods):
+            matched = [r for r in recent if method in r.get('shadow_intervals', {})]
+            reference = [{**r, 'date': r['target']} for r in matched]
+            challenger = [{**r, **r['shadow_intervals'][method]} for r in reference]
+            record['interval_challengers'][method] = {
+                'reference': interval_score(reference) if reference else None,
+                'challenger': interval_score(challenger) if challenger else None,
+                'awaiting_mature_actuals': shadow_pending[(series, method)],
+                'status': 'Shadow only; promotion requires review'}
         for week, items in sorted(weeks.items()):
             denominator = sum(r['actual'] for r in items)
             record['weekly'].append({'week': week, 'predictions': len(items), 'dates': len({r['target'] for r in items}),

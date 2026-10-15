@@ -74,11 +74,11 @@ def test_ledger_is_saved_only_after_publication(job, monkeypatch, publication_fa
     s3.list_objects_v2.return_value = {}
     monkeypatch.setattr(job.boto3, 'client', lambda name: s3 if name == 's3' else metrics)
     source = {'source': {'reporting_lag_days': 2, 'data_through': '2026-09-19'}}
-    report = {'series': {}, 'generated_at': '2026-09-21T12:00:00+00:00'}
+    report = {'series': {}, 'model_version': 'test', 'generated_at': '2026-09-21T12:00:00+00:00'}
     monkeypatch.setattr(job, 'fetch', lambda **kwargs: source)
     monkeypatch.setattr(job, 'fetch_weather', lambda *args: None)
     monkeypatch.setattr(job, 'build', lambda *args, **kwargs: report)
-    monkeypatch.setattr(job, 'update', lambda *args: ({'issues': {}}, {'series': {}}))
+    monkeypatch.setattr(job, 'update', lambda *args, **kwargs: ({'issues': {}}, {'series': {}}))
     monkeypatch.setattr(job, 'summarize', lambda *args: {'status': 'Available'})
     writes = []
     def put(**kwargs):

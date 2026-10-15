@@ -4,6 +4,7 @@ from statistics import mean
 
 from serviceforecast.weather import extra_features
 from serviceforecast.diagnostics import diagnostics
+from serviceforecast.intervals import bounds, calibrate
 
 HORIZON = 14
 CANDIDATES = ('same_weekday', 'four_week_mean', 'seasonal_ridge')
@@ -187,6 +188,7 @@ def build(source, weather=None):
         test_metrics = {candidate: metrics(rows) for candidate, rows in tests.items()}
         coverage = mean(abs(r['actual']-r['predicted']) <= width for r in selected_test)
         final = fit(values, days, n)
+        interval_challenger = calibrate(chosen, values, days, n)
         shadow = fit(values, days, n, weather) if weather else None
         if weather:
             shadow_frozen = fit(values, days, validation_end, weather)
@@ -200,6 +202,9 @@ def build(source, weather=None):
                 'upper': math.ceil(value+width), 'horizon': horizon,
                 'candidates': {candidate: round(predict(candidate, values, days, n-1, horizon, final), 2)
                                for candidate in CANDIDATES}})
+            lower, upper = bounds(value, horizon, interval_challenger)
+            predictions[-1]['shadow_intervals'] = {interval_challenger['method']: {
+                'lower': max(0, math.floor(lower)), 'upper': math.ceil(upper)}}
             if shadow:
                 predictions[-1]['candidates']['weather_calendar_ridge'] = round(predict(
                     'weather_calendar_ridge', values, days, n-1, horizon, shadow, weather), 2)
@@ -208,6 +213,7 @@ def build(source, weather=None):
             'test_metrics': test_metrics, 'test_interval_coverage_pct': round(100*coverage, 1),
             'interval': {'nominal_pct': 90, 'calibration_days': len(errors), 'half_width': round(width, 2),
                          'interpretation': 'Empirical error band; time dependence and drift mean 90% coverage is not guaranteed.'},
+            'interval_challenger': {**interval_challenger, 'role': 'Shadow only; does not replace displayed bands'},
             'fitted_model': final, 'forecast': predictions,
             'history': [{'date': d.isoformat(), 'requests': v} for d, v in zip(days[-90:], values[-90:])],
             'test_predictions': [{**r, 'predicted': round(r['predicted'], 2)} for r in selected_test]}

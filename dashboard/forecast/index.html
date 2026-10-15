@@ -7,6 +7,7 @@
 <header><div class="eyebrow">Service Operations / Forecast Lab</div><h1>Plan for the next wave of requests.</h1><p>Daily NYC 311 demand forecasts, tested against simple baselines. Explore boroughs, uncertainty, and a daily processing-capacity scenario.</p><a href="/">← IT incident analytics</a></header>
 <main><div class="status"><div><strong id="data-through">Loading current data…</strong><div id="updated" class="small"></div></div><span id="freshness" class="badge">Checking freshness</span></div>
 <div id="error" class="error" role="alert" hidden></div>
+<p id="coverage-advisory" class="error" role="status" hidden></p>
 <div id="content" hidden><div class="controls">
 <label>Borough<select id="borough" aria-label="Borough"></select></label>
 <label>Forecast window<select id="horizon" aria-label="Forecast window"><option value="7">7 days after data cutoff</option><option value="14" selected>14 days after data cutoff</option></select></label>
@@ -22,6 +23,10 @@
 <p id="monitor-status"></p><div id="monitor-chart"></div><p id="monitor-detail" class="small"></p>
 <div class="table-wrap"><table aria-label="Weekly prospective errors"><thead><tr><th>Target week</th><th>Predictions</th><th>Distinct dates</th><th>WAPE</th><th>Band coverage</th></tr></thead><tbody id="monitor-weeks"></tbody></table></div>
 <p id="monitor-leads" class="small"></p><p id="revision-info" class="small"></p>
+<h3>Results by published model version</h3><p id="version-note" class="small"></p>
+<div class="table-wrap"><table aria-label="Performance by model version"><thead><tr><th>Version</th><th>Scored</th><th>Dates</th><th>Coverage</th><th>WAPE</th><th>Pending</th></tr></thead><tbody id="monitor-versions"></tbody></table></div>
+<p id="band-misses" class="small"></p><p id="interval-study" class="note"></p>
+<p class="small"><a href="https://github.com/RyanSingh0/service-operations-analytics-portfolio/blob/main/docs/releases/2026-10-14-coverage.md">Coverage investigation and calibration experiment</a></p>
 <p class="note">Only forecasts published before the target day enter this chart. Actuals mature for seven days after the source cutoff passes their date. Overlapping forecasts are counted separately; this is not a sample of independent outcomes. Coverage warnings require at least 28 forecasts over 14 target dates.</p></section>
 <section class="card section"><h2>Why this forecast looks this way</h2><p id="selection-reason"></p><p id="selection-dates" class="small"></p><div class="table-wrap"><table aria-label="Walk-forward validation comparison"><thead><tr><th>Candidate</th><th>Window 1 WAPE</th><th>Window 2 WAPE</th><th>Window 3 WAPE</th><th>Pooled WAPE</th></tr></thead><tbody id="selection-windows"></tbody></table></div><p id="selection-gates" class="note"></p><p class="small">Selection uses MAE; WAPE has the same ranking within each shared evaluation period. Equal-length windows contribute equally to pooled MAE. The later test scores do not select the winner. These are retrospective comparisons; future published results are the check on this revised policy.</p><p id="weather-info"></p>
 <p class="small">Demand can change because of weather, holidays, reporting access or data revisions. These are possible explanations, not established causes. A 28-day demand shift above 30% is flagged for investigation. <a href="https://www.nyc.gov/opendata/news/all-news/311-Service-Requests-Updates" target="_blank" rel="noreferrer">NYC reporting changes</a> · <a href="https://open-meteo.com/en/docs/historical-weather-api" target="_blank" rel="noreferrer">Weather attribution: Open-Meteo / ERA5</a></p></section>

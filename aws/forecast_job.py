@@ -69,8 +69,13 @@ def run(event, verify_lease, run_id=None):
     if event.get('failure_drill'):
         raise ValueError('Controlled forecast failure before publication')
     verify_lease()
-    state, monitoring = update(read_optional('forecast/monitor-state.json'), source, previous)
+    state, monitoring = update(read_optional('forecast/monitor-state.json'), source, previous,
+                               current_version=report['model_version'])
     report['monitoring'] = monitoring
+    warnings = {name: {'coverage_pct': data['coverage_pct'], 'by_version': data['by_version']}
+                for name, data in monitoring['series'].items() if data['status'] == 'Undercoverage warning'}
+    if warnings:
+        print('Coverage investigation:', json.dumps(warnings, allow_nan=False))
     try:
         report['run_health'] = health.read(s3, bucket, exclude=run_id)
     except Exception as error:

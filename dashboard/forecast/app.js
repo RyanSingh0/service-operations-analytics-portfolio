@@ -61,8 +61,26 @@ load();setInterval(load,15*60*1000);
 
 function monitoring(name, series) {
   const monitor=report.monitoring, m=monitor?.series?.[name];
+  const versions=m?.by_version||{}, current=versions[report.model_version];
+  if($('coverage-advisory')){
+    const affected=Object.entries(monitor?.series||{}).filter(([,v])=>v.status==='Undercoverage warning');
+    $('coverage-advisory').hidden=!affected.length;
+    $('coverage-advisory').textContent=affected.length ? 'Coverage investigation: '+affected.map(([n,v])=>`${n} ${v.coverage_pct}%`).join('; ')+'. These published forecast bands missed more actuals than intended. The warning includes earlier model versions; inspect the version table below. Bands are not a capacity guarantee.' : '';
+  }
+  if($('monitor-versions')){
+    $('monitor-versions').replaceChildren();
+    for(const [version,c] of Object.entries(versions)){
+      const tr=document.createElement('tr');
+      [version+(version===report.model_version?' (current)':''),c.scored_predictions,c.distinct_target_dates,c.coverage_pct===null?'Pending':c.coverage_pct+'%',c.wape_pct===null?'Pending':c.wape_pct+'%',c.awaiting_mature_actuals].forEach(v=>cell(tr,v));
+      $('monitor-versions').append(tr);
+    }
+    $('version-note').textContent=current ? `Current version: ${current.status}. Scored targets: ${current.target_start||'none'} to ${current.target_end||'none'}. Earlier versions remain in the overall warning; a release never clears their results.` : 'Version cohorts will appear after the next publication.';
+    $('band-misses').textContent=m?.misses ? `Across all scored versions: ${m.misses.below_band} actuals below the band, ${m.misses.above_band} above it. Mean forecast minus actual: ${m.misses.mean_bias} requests/day.` : '';
+    const challenger=series.interval_challenger, observed=challenger ? m?.interval_challengers?.[challenger.method] : null;
+    $('interval-study').textContent=challenger ? `Shadow band study: ${challenger.calibration_days} recent residual dates (${challenger.calibration_start}–${challenger.calibration_end}), separate widths for days 1–7 and 8–14 after the source cutoff. Displayed bands are unchanged. `+(observed?.challenger ? `Matched published coverage: current ${observed.reference.coverage_pct}%, shadow ${observed.challenger.coverage_pct}%; interval score (lower is better): ${observed.reference.mean_interval_score} versus ${observed.challenger.mean_interval_score}, over ${observed.challenger.predictions} forecasts and ${observed.challenger.distinct_target_dates} dates.` : 'No mature matched outcomes yet; retrospective evidence is mixed.') : 'A calibration study will appear after the next publication.';
+  }
   $('monitor-weeks').replaceChildren(); $('monitor-chart').replaceChildren();
-  $('monitor-status').textContent=m ? `${m.status} · ${m.scored_predictions} scored forecasts across ${m.distinct_target_dates} target dates` : 'Prospective monitoring starts with the next successful publication.';
+  $('monitor-status').textContent=m ? `All published versions: ${m.status} · ${m.scored_predictions} scored forecasts across ${m.distinct_target_dates} target dates` : 'Prospective monitoring starts with the next successful publication.';
   $('monitor-status').style.color=m?.status==='Undercoverage warning'?'#a0411f':'#245d55';
   $('monitor-detail').textContent=m ? `${m.awaiting_mature_actuals} forecasts await mature actuals. Recorded band coverage: ${m.coverage_pct===null?'not yet measurable':m.coverage_pct+'%'}. Recent 28-day demand change: ${m.demand_shift_pct??'unavailable'}%${m.demand_shift_warning?' — investigate the shift':''}.` : '';
   const weekly=m?.weekly||[];
