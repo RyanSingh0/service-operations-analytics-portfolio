@@ -4,6 +4,10 @@ Three connected demonstrations: verified IT incident analytics, daily NYC 311 de
 
 [One-page case study (PDF)](docs/case-study.pdf) · [Model promotion and recovery policy](docs/model-operations.md)
 
+**October 14 coverage investigation:** published forecasts exposed weak bands in Brooklyn and Manhattan. Monitoring now separates model versions and tracks a recent, horizon-specific calibration candidate in shadow mode. Historical warnings remain visible; retrospective results did not justify replacing the displayed bands. [Evidence, experiment and review criteria](docs/releases/2026-10-14-coverage.md).
+
+![Manhattan monitoring separates earlier forecast errors from the current version awaiting outcomes; captured October 14, 2026](docs/assets/coverage.jpg)
+
 The dashboards include a weekday/lead-time error heatmap, interval calibration, a capacity trade-off curve, daily backlog balance, and critical-versus-moderate survival scenarios. Retrospective replay is labeled separately from published forecast monitoring. A run-health strip reports up to 30 recorded forecast attempts; its collection starts with the diagnostics release.
 
 **[IT dashboard](https://d17q1whdf7htno.cloudfront.net/) · [Current NYC 311 forecasts](https://d17q1whdf7htno.cloudfront.net/forecast/index.html) · [Resolution model](https://d17q1whdf7htno.cloudfront.net/resolution/index.html)**

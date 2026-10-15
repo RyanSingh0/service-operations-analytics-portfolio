@@ -1,0 +1,494 @@
+{
+  "BRONX": [
+    {
+      "start": "2026-06-23",
+      "end": "2026-07-20",
+      "model": "seasonal_ridge",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 66.7,
+        "mean_width": 923.48,
+        "mean_interval_score": 7826.02
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 75.0,
+        "mean_width": 1535.23,
+        "mean_interval_score": 6996.84
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-07-21",
+      "end": "2026-08-17",
+      "model": "seasonal_ridge",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 1247.24,
+        "mean_interval_score": 1731.13
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 1925.5,
+        "mean_interval_score": 2406.99
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-08-18",
+      "end": "2026-09-14",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 1531.25,
+        "mean_interval_score": 1531.25
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 1583.79,
+        "mean_interval_score": 1583.79
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-09-15",
+      "end": "2026-10-12",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 1662.75,
+        "mean_interval_score": 1662.75
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 1348.73,
+        "mean_interval_score": 1348.73
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    }
+  ],
+  "BROOKLYN": [
+    {
+      "start": "2026-06-23",
+      "end": "2026-07-20",
+      "model": "seasonal_ridge",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 87.5,
+        "mean_width": 1191.6,
+        "mean_interval_score": 1897.23
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 87.5,
+        "mean_width": 1294.12,
+        "mean_interval_score": 1811.36
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-07-21",
+      "end": "2026-08-17",
+      "model": "seasonal_ridge",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 1468.49,
+        "mean_interval_score": 1468.49
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 1396.14,
+        "mean_interval_score": 1396.14
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-08-18",
+      "end": "2026-09-14",
+      "model": "seasonal_ridge",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 87.5,
+        "mean_width": 1233.85,
+        "mean_interval_score": 1628.36
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 83.3,
+        "mean_width": 1076.64,
+        "mean_interval_score": 1626.27
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-09-15",
+      "end": "2026-10-12",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 79.2,
+        "mean_width": 881.0,
+        "mean_interval_score": 1462.25
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 75.0,
+        "mean_width": 911.92,
+        "mean_interval_score": 1366.5
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    }
+  ],
+  "MANHATTAN": [
+    {
+      "start": "2026-06-23",
+      "end": "2026-07-20",
+      "model": "seasonal_ridge",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 768.7,
+        "mean_interval_score": 768.7
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 754.87,
+        "mean_interval_score": 763.96
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-07-21",
+      "end": "2026-08-17",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 904.0,
+        "mean_interval_score": 904.0
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 782.88,
+        "mean_interval_score": 782.88
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-08-18",
+      "end": "2026-09-14",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 91.7,
+        "mean_width": 677.0,
+        "mean_interval_score": 846.79
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 87.5,
+        "mean_width": 586.85,
+        "mean_interval_score": 833.94
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-09-15",
+      "end": "2026-10-12",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 66.7,
+        "mean_width": 512.5,
+        "mean_interval_score": 993.96
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 75.0,
+        "mean_width": 600.42,
+        "mean_interval_score": 1002.71
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    }
+  ],
+  "QUEENS": [
+    {
+      "start": "2026-06-23",
+      "end": "2026-07-20",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 1038.5,
+        "mean_interval_score": 1104.96
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 1282.52,
+        "mean_interval_score": 1332.94
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-07-21",
+      "end": "2026-08-17",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 1542.0,
+        "mean_interval_score": 1542.0
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 1290.75,
+        "mean_interval_score": 1290.75
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-08-18",
+      "end": "2026-09-14",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 1013.5,
+        "mean_interval_score": 1013.71
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 831.9,
+        "mean_interval_score": 893.77
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-09-15",
+      "end": "2026-10-12",
+      "model": "seasonal_ridge",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 83.3,
+        "mean_width": 627.97,
+        "mean_interval_score": 1048.96
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 83.3,
+        "mean_width": 644.27,
+        "mean_interval_score": 1158.12
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    }
+  ],
+  "STATEN ISLAND": [
+    {
+      "start": "2026-06-23",
+      "end": "2026-07-20",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 75.0,
+        "mean_width": 215.75,
+        "mean_interval_score": 590.75
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 70.8,
+        "mean_width": 238.35,
+        "mean_interval_score": 588.56
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-07-21",
+      "end": "2026-08-17",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 230.5,
+        "mean_interval_score": 234.88
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 256.58,
+        "mean_interval_score": 276.58
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-08-18",
+      "end": "2026-09-14",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 277.0,
+        "mean_interval_score": 277.0
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 247.81,
+        "mean_interval_score": 253.02
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-09-15",
+      "end": "2026-10-12",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 249.5,
+        "mean_interval_score": 249.92
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 211.96,
+        "mean_interval_score": 212.38
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    }
+  ],
+  "NYC TOTAL": [
+    {
+      "start": "2026-06-23",
+      "end": "2026-07-20",
+      "model": "seasonal_ridge",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 79.2,
+        "mean_width": 2842.79,
+        "mean_interval_score": 9010.91
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 87.5,
+        "mean_width": 4317.72,
+        "mean_interval_score": 7806.1
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-07-21",
+      "end": "2026-08-17",
+      "model": "seasonal_ridge",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 4163.75,
+        "mean_interval_score": 4163.75
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 100,
+        "mean_width": 4872.0,
+        "mean_interval_score": 4872.0
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-08-18",
+      "end": "2026-09-14",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 3657.75,
+        "mean_interval_score": 3745.04
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 95.8,
+        "mean_width": 2979.25,
+        "mean_interval_score": 3094.46
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    },
+    {
+      "start": "2026-09-15",
+      "end": "2026-10-12",
+      "model": "four_week_mean",
+      "reference": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 91.7,
+        "mean_width": 3217.5,
+        "mean_interval_score": 3485.62
+      },
+      "recent": {
+        "predictions": 24,
+        "distinct_target_dates": 24,
+        "coverage_pct": 87.5,
+        "mean_width": 2797.77,
+        "mean_interval_score": 3390.48
+      },
+      "method": "Retrospective band comparison on shared point forecasts; selection frozen before test; refits and calibration use only data before each origin; two-day publication lag. Uses revised source data, not historical publication vintages."
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 # Validation record
 
+October 14 coverage investigation: 81 tests passed, including future-target exclusion from calibration, expanding refit cutoffs, version-cohort isolation, matched shadow scoring, future pending counts and immutable first daily issues. Python lint and JavaScript syntax checks passed. See the [coverage release record](releases/2026-10-14-coverage.md) for the measured experiment and remaining limitation.
+
 Latest forecast release verified October 9, 2026; see the [selection release record](releases/2026-10-08-selection.md). Historical IT checks below were verified September 18–19, 2026, at reference snapshot `2016-05-08 23:59:59`, source-local time. The IT source is fixed historical data.
 
 ## October 8–9 forecast selection release

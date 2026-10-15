@@ -16,6 +16,8 @@ Monitoring starts with deployment; no historical operating record is fabricated 
 
 ## Demand shifts and source revisions
 
+The [October 14 coverage investigation](releases/2026-10-14-coverage.md) adds per-version outcome cohorts and miss direction. The overall warning still includes prior versions. Pending counts include targets beyond the current extract, and unavailable coverage stays null. A recent 84-day, horizon-specific band candidate is recorded in shadow mode for future publications only. Matched-pair coverage, width and interval score are computed automatically when actuals mature; no past issue is backfilled. The displayed point forecasts and bands remain unchanged because retrospective evidence was mixed.
+
 Each run compares overlapping city-total source dates with the previous extract. It reports changed dates, absolute revisions and signed revisions. These are revisions to recorded requests, not evidence that community needs changed. Counts may be affected by access to reporting channels, classification, administrative changes or corrections.
 
 The page reports the percentage change between the latest 28-day mean and the preceding 28-day mean and flags absolute shifts above 30%. Both windows contain four of every weekday. Seasonality, holidays and genuine demand can still explain a flag. It is a distribution-change diagnostic, not proof of model concept drift or a causal explanation.

@@ -40,6 +40,8 @@ Until a reviewed recovery is released, retain the visible warning; do not imply 
 
 ## What the charts measure
 
+The [October 14 incident record](releases/2026-10-14-coverage.md) documents a shadow calibration experiment and its prospective promotion criteria. It does not change the existing warning threshold or enable automatic fallback. Outcome cohorts separate model versions while retaining overall historical warnings. Current displayed bands still use the original calibration method; shadow bounds are logged and scored only for issues actually published with them.
+
 - Calibration curve: widths estimated at six nominal levels on 42 earlier calibration
   dates, evaluated on 42 held-out dates. Dependence and small samples limit inference.
 - Heatmap and retrospective weekly line: daily origins with an assumed two-day publication
